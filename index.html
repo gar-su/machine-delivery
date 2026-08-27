@@ -101,6 +101,13 @@
   .batch-form-field{display:flex;align-items:center;gap:10px}
   .batch-form-field label{font-size:13px;color:var(--muted);white-space:nowrap}
   .batch-form-actions{display:flex;gap:10px}
+  .ss-wrap{position:relative;min-width:150px}
+  .ss-input{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff}
+  .ss-input:focus{outline:none;border-color:var(--primary)}
+  .ss-list{position:absolute;top:100%;left:0;right:0;z-index:50;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.08);max-height:200px;overflow:auto;display:none}
+  .ss-wrap.ss-open .ss-list{display:block}
+  .ss-opt{padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ss-opt:hover,.ss-opt.cur{background:var(--blue-bg);color:var(--primary)}
 </style>
 </head>
 <body>
@@ -111,8 +118,7 @@
 <div class="outer-tabs">
   <div class="outer-tab active" data-outer="dashboard">运行看板</div>
   <div class="outer-tab" data-outer="checklist">测新清单</div>
-  <div class="outer-tab" data-outer="template">模板管理</div>
-  <div class="outer-tab" data-outer="alert">告警<span class="badge-num" id="alertCount">2</span></div>
+  <div class="outer-tab" data-outer="tasks">默认自动化任务</div>
 </div>
 
 <!-- 运行看板 -->
@@ -126,30 +132,30 @@
     <div class="page active" id="page-overview">
       <div class="stat-grid">
         <div class="stat"><div class="label">今日收到信号</div><div class="num">28</div></div>
-        <div class="stat"><div class="label">今日起任务成功</div><div class="num green">23</div></div>
+        <div class="stat"><div class="label">今日绑定成功</div><div class="num green">23</div></div>
         <div class="stat"><div class="label">失败 / 跳过</div><div class="num amber">5</div></div>
         <div class="stat"><div class="label">待确认清单</div><div class="num">7</div></div>
-        <div class="stat"><div class="label">无匹配模板跳过</div><div class="num red">2</div></div>
+        <div class="stat"><div class="label">无匹配自动化任务跳过</div><div class="num red">2</div></div>
       </div>
       <div class="card">
         <h3>最近编排活动</h3>
         <table>
-          <thead><tr><th>时间</th><th>信号</th><th>维度</th><th>目标</th><th>模板</th><th>操作人</th><th>建任务</th><th>运行</th><th>广告</th></tr></thead>
+          <thead><tr><th>时间</th><th>信号</th><th>维度</th><th>目标</th><th>自动化任务</th><th>操作人</th><th>绑定</th><th>运行</th><th>广告</th></tr></thead>
           <tbody>
-            <tr><td>2026-08-14 14:32</td><td><span class="tag tag-blue">跟投</span></td><td>剧</td><td>LA001 霸总的替嫁新娘</td><td>kr_default</td><td>系统</td>
+            <tr><td>2026-08-14 14:32</td><td><span class="tag tag-blue">跟投</span></td><td>剧</td><td>LA001 霸总的替嫁新娘</td><td>meta_kr_follow / tt_kr_follow</td><td>系统</td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td>
             </tr>
-            <tr><td>2026-08-14 14:30</td><td><span class="tag tag-blue">跟投</span></td><td>素材</td><td>003_Shuer_QT_EN</td><td>en_small</td><td>系统</td>
+            <tr><td>2026-08-14 14:30</td><td><span class="tag tag-blue">跟投</span></td><td>素材</td><td>003_Shuer_QT_EN</td><td>meta_en_follow / tt_en_follow</td><td>系统</td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td>
               <td><span class="st"><span class="st-dot s-none"></span><span class="st-txt s-none">—</span></span></td>
             </tr>
             <tr><td>2026-08-14 14:15</td><td><span class="tag tag-blue">跟投</span></td><td>广告计划</td><td>cp_8891</td><td>—</td><td>系统</td>
-              <td colspan="3" class="cell-muted">无匹配模板</td>
+              <td colspan="3" class="cell-muted">无匹配自动化任务</td>
             </tr>
-            <tr><td>2026-08-14 13:58</td><td><span class="tag tag-green">测新</span></td><td>剧</td><td>LA002 重生之都市医仙</td><td>en_default</td><td>运营A</td>
+            <tr><td>2026-08-14 13:58</td><td><span class="tag tag-green">测新</span></td><td>剧</td><td>LA002 重生之都市医仙</td><td>meta_en_test / tt_en_test</td><td>运营A</td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td>
               <td><span class="st"><span class="st-dot s-partial"></span><span class="st-txt s-partial">部分成功</span></span></td>
@@ -157,17 +163,17 @@
             <tr><td>2026-08-14 13:40</td><td><span class="tag tag-green">测新</span></td><td>剧</td><td>LA010 逆光而行</td><td>—</td><td>运营B</td>
               <td colspan="3" class="cell-muted">已驳回</td>
             </tr>
-            <tr><td>2026-08-14 13:10</td><td><span class="tag tag-blue">跟投</span></td><td>剧</td><td>LA004 小娇妻马甲藏不住了</td><td>kr_default</td><td>系统</td>
-              <td><span class="st"><span class="st-dot s-ing"></span><span class="st-txt s-ing">建任务中</span></span></td>
+            <tr><td>2026-08-14 13:10</td><td><span class="tag tag-blue">跟投</span></td><td>剧</td><td>LA004 小娇妻马甲藏不住了</td><td>meta_kr_follow / tt_kr_follow</td><td>系统</td>
+              <td><span class="st"><span class="st-dot s-ing"></span><span class="st-txt s-ing">绑定中</span></span></td>
               <td><span class="st"><span class="st-dot s-none"></span><span class="st-txt s-none">—</span></span></td>
               <td><span class="st"><span class="st-dot s-none"></span><span class="st-txt s-none">—</span></span></td>
             </tr>
-            <tr><td>2026-08-14 11:20</td><td><span class="tag tag-blue">跟投</span></td><td>剧</td><td>LA005 闪婚老公是大佬</td><td>kr_default</td><td>系统</td>
+            <tr><td>2026-08-14 11:20</td><td><span class="tag tag-blue">跟投</span></td><td>剧</td><td>LA005 闪婚老公是大佬</td><td>meta_kr_follow / tt_kr_follow</td><td>系统</td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td>
               <td><span class="st"><span class="st-dot s-pause"></span><span class="st-txt s-pause">暂停</span></span></td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td>
             </tr>
-            <tr><td>2026-08-14 10:05</td><td><span class="tag tag-green">测新</span></td><td>剧</td><td>LA008 落日余晖下的吻</td><td>en_default</td><td>运营A</td>
+            <tr><td>2026-08-14 10:05</td><td><span class="tag tag-green">测新</span></td><td>剧</td><td>LA008 落日余晖下的吻</td><td>meta_en_test / tt_en_test</td><td>运营A</td>
               <td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td>
               <td><span class="st"><span class="st-dot s-none"></span><span class="st-txt s-none">—</span></span></td>
               <td><span class="st"><span class="st-dot s-none"></span><span class="st-txt s-none">—</span></span></td>
@@ -186,11 +192,11 @@
         <label>环节状态</label>
         <select id="recStatus">
           <option value="">全部</option>
-          <optgroup label="建任务">
-            <option>建任务中</option>
+          <optgroup label="绑定">
+            <option>绑定中</option>
             <option>成功</option>
             <option>失败</option>
-            <option>跳过·无匹配模板</option>
+            <option>跳过·无匹配自动化任务</option>
             <option>跳过·数据异常</option>
             <option>已驳回</option>
           </optgroup>
@@ -212,12 +218,12 @@
         <button class="reset" onclick="o()">重置</button>
       </div>
       <table>
-        <thead><tr><th>信号ID</th><th>类型</th><th>维度</th><th>目标</th><th>模板</th><th>自动化任务ID</th><th>操作人</th><th>建任务</th><th>运行</th><th>广告</th><th>理由</th><th>时间</th></tr></thead>
+        <thead><tr><th>信号ID</th><th>类型</th><th>维度</th><th>目标</th><th>自动化任务</th><th>自动化任务ID</th><th>操作人</th><th>绑定</th><th>运行</th><th>广告</th><th>理由</th><th>时间</th></tr></thead>
         <tbody>
-          <tr><td>sg_20260814_1432_01</td><td>跟投</td><td>短剧</td><td>LA001 霸总的替嫁新娘</td><td>韩语默认</td><td>task_77120</td><td>系统</td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td><td class="reason">成长期 ROI>40% 触发跨账户跟投</td><td>2026-08-14 14:32</td></tr>
-          <tr><td>sg_20260814_1430_07</td><td>跟投</td><td>素材</td><td>003_Shuer_QT_EN</td><td>英语小跟</td><td>task_77118</td><td>系统</td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td><td><span class="st"><span class="st-dot s-none"></span><span class="st-txt s-none">—</span></span></td><td class="reason">素材打分 82 分，建议加量</td><td>2026-08-14 14:30</td></tr>
-          <tr><td>sg_20260814_1415_03</td><td>跟投</td><td>广告计划</td><td>cp_8891</td><td>—</td><td>—</td><td>系统</td><td colspan="3" class="cell-muted">无匹配模板</td><td class="reason">—</td><td>2026-08-14 14:15</td></tr>
-          <tr><td>sg_20260814_1358_02</td><td>测新</td><td>短剧</td><td>LA002 重生之都市医仙</td><td>英语默认</td><td>task_77102</td><td>运营A</td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td><td><span class="st"><span class="st-dot s-partial"></span><span class="st-txt s-partial">部分成功</span></span></td><td class="reason">—</td><td>2026-08-14 13:58</td></tr>
+          <tr><td>sg_20260814_1432_01</td><td>跟投</td><td>短剧</td><td>LA001 霸总的替嫁新娘</td><td>韩语跟投</td><td>meta_kr_follow / tt_kr_follow</td><td>系统</td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td><td class="reason">成长期 ROI>40% 触发跨账户跟投</td><td>2026-08-14 14:32</td></tr>
+          <tr><td>sg_20260814_1430_07</td><td>跟投</td><td>素材</td><td>003_Shuer_QT_EN</td><td>英语跟投</td><td>meta_en_follow / tt_en_follow</td><td>系统</td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td><td><span class="st"><span class="st-dot s-none"></span><span class="st-txt s-none">—</span></span></td><td class="reason">素材打分 82 分，建议加量</td><td>2026-08-14 14:30</td></tr>
+          <tr><td>sg_20260814_1415_03</td><td>跟投</td><td>广告计划</td><td>cp_8891</td><td>—</td><td>—</td><td>系统</td><td colspan="3" class="cell-muted">无匹配自动化任务</td><td class="reason">—</td><td>2026-08-14 14:15</td></tr>
+          <tr><td>sg_20260814_1358_02</td><td>测新</td><td>短剧</td><td>LA002 重生之都市医仙</td><td>英语测新</td><td>meta_en_test / tt_en_test</td><td>运营A</td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">成功</span></span></td><td><span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span></td><td><span class="st"><span class="st-dot s-partial"></span><span class="st-txt s-partial">部分成功</span></span></td><td class="reason">—</td><td>2026-08-14 13:58</td></tr>
           <tr><td>sg_20260814_1340_09</td><td>测新</td><td>短剧</td><td>LA010 逆光而行</td><td>—</td><td>—</td><td>运营B</td><td colspan="3" class="cell-muted">已驳回</td><td class="reason">—</td><td>2026-08-14 13:40</td></tr>
         </tbody>
       </table>
@@ -232,11 +238,13 @@
         <button class="reset" onclick="o()">重置</button>
       </div>
       <table>
-        <thead><tr><th>任务ID</th><th>任务名称</th><th>状态</th><th>操作人</th><th>广告系列数</th><th>账户数</th><th>日预算</th><th>上次完成时间</th></tr></thead>
+        <thead><tr><th>自动化任务ID</th><th>自动化任务名</th><th>平台</th><th>场景</th><th>状态</th><th>广告系列数</th><th>账户数</th><th>日预算</th><th>上次完成时间</th></tr></thead>
         <tbody>
-          <tr><td>task_77120</td><td>霸总替嫁-跟投</td><td><span class="tag tag-green">启用</span></td><td>系统</td><td>12</td><td>4</td><td>$200</td><td>2026-08-14 14:30</td></tr>
-          <tr><td>task_77118</td><td>Shuer英文-跟投</td><td><span class="tag tag-green">启用</span></td><td>系统</td><td>5</td><td>3</td><td>$120</td><td>2026-08-14 14:28</td></tr>
-          <tr><td>task_77102</td><td>医仙-测新</td><td><span class="tag tag-green">启用</span></td><td>运营A</td><td>3</td><td>2</td><td>$50</td><td>2026-08-14 13:55</td></tr>
+          <tr><td>meta_kr_follow</td><td>韩语跟投</td><td>Meta</td><td>跟投</td><td><span class="tag tag-green">启用</span></td><td>12</td><td>4</td><td>$200</td><td>2026-08-14 14:30</td></tr>
+          <tr><td>tt_kr_follow</td><td>韩语跟投</td><td>TikTok</td><td>跟投</td><td><span class="tag tag-green">启用</span></td><td>10</td><td>3</td><td>$180</td><td>2026-08-14 14:30</td></tr>
+          <tr><td>meta_en_follow</td><td>英语跟投</td><td>Meta</td><td>跟投</td><td><span class="tag tag-green">启用</span></td><td>5</td><td>3</td><td>$120</td><td>2026-08-14 14:28</td></tr>
+          <tr><td>meta_en_test</td><td>英语测新</td><td>Meta</td><td>测新</td><td><span class="tag tag-green">启用</span></td><td>3</td><td>2</td><td>$50</td><td>2026-08-14 13:55</td></tr>
+          <tr><td>tt_en_test</td><td>英语测新</td><td>TikTok</td><td>测新</td><td><span class="tag tag-green">启用</span></td><td>2</td><td>1</td><td>$40</td><td>2026-08-14 13:55</td></tr>
         </tbody>
       </table>
     </div>
@@ -270,223 +278,289 @@
         <tr>
           <td><input type="checkbox" class="cl-checkbox" data-id="cl_20260814_001"></td>
           <td>cl_20260814_001</td><td>LA001 霸总的替嫁新娘</td><td>韩语</td><td>2026-08-15 10:00</td><td>—</td><td><span class="tag tag-amber">待确认</span></td>
-          <td><button class="btn success" onclick="confirmList(this)">通过</button><button class="btn warning" onclick="rejectList(this)">驳回</button><span class="link" onclick="openDetail()">详情</span></td>
+          <td><button class="btn success" onclick="confirmList(this)">通过</button><button class="btn warning" onclick="rejectList(this)">驳回</button><span class="link" onclick="openDetail(this)">详情</span></td>
         </tr>
         <tr>
           <td><input type="checkbox" class="cl-checkbox" data-id="cl_20260814_002"></td>
           <td>cl_20260814_002</td><td>LA002 重生之都市医仙</td><td>英语</td><td>2026-08-15 10:00</td><td>—</td><td><span class="tag tag-amber">待确认</span></td>
-          <td><button class="btn success" onclick="confirmList(this)">通过</button><button class="btn warning" onclick="rejectList(this)">驳回</button><span class="link" onclick="openDetail()">详情</span></td>
+          <td><button class="btn success" onclick="confirmList(this)">通过</button><button class="btn warning" onclick="rejectList(this)">驳回</button><span class="link" onclick="openDetail(this)">详情</span></td>
         </tr>
         <tr>
           <td><input type="checkbox" class="cl-checkbox" data-id="cl_20260814_003"></td>
           <td>cl_20260814_003</td><td>LA003 小姨我爱你</td><td>中文</td><td>—</td><td>—</td><td><span class="tag tag-amber">待确认</span></td>
-          <td><button class="btn success" onclick="confirmList(this)">通过</button><button class="btn warning" onclick="rejectList(this)">驳回</button><span class="link" onclick="openDetail()">详情</span></td>
+          <td><button class="btn success" onclick="confirmList(this)">通过</button><button class="btn warning" onclick="rejectList(this)">驳回</button><span class="link" onclick="openDetail(this)">详情</span></td>
         </tr>
         <tr>
           <td><input type="checkbox" class="cl-checkbox" data-id="cl_20260813_009" disabled title="已驳回，不可批量操作"></td>
           <td>cl_20260813_009</td><td>LA006 天才萌宝找上门</td><td>泰语</td><td>—</td><td>运营B</td><td><span class="tag tag-red">已驳回</span></td>
-          <td><span class="link" onclick="openDetail()">详情</span></td>
+          <td><span class="link" onclick="openDetail(this)">详情</span></td>
         </tr>
         <tr>
           <td><input type="checkbox" class="cl-checkbox" data-id="cl_20260813_005" disabled title="已通过，不可批量操作"></td>
           <td>cl_20260813_005</td><td>LA007 总裁的替身白月光</td><td>英语</td><td>2026-08-14 12:00</td><td>运营A</td><td><span class="tag tag-green">已通过</span></td>
-          <td><span class="link" onclick="openDetail()">详情</span></td>
+          <td><span class="link" onclick="openDetail(this)">详情</span></td>
         </tr>
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- 模板管理 -->
-<div class="outer-page" id="outer-template" style="display:none">
+<!-- 默认自动化任务 -->
+<div class="outer-page" id="outer-tasks" style="display:none">
   <div class="content">
-    <div class="card" style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <h3 style="margin:0">默认模板（场景 × 语言 × 用户）</h3>
-        <button class="btn primary" onclick="openTemplate()">+ 新增默认模板</button>
-      </div>
+    <div class="card">
+      <h3 style="margin:0 0 12px">默认自动化任务（场景 × 语种）</h3>
       <table>
-        <thead><tr><th>场景</th><th>语言</th><th>用户</th><th>默认模板</th><th>说明</th></tr></thead>
-        <tbody>
-          <tr><td>测新</td><td>韩语</td><td>运营A</td><td>tpl_kr_default</td><td>运营A 测新默认</td></tr>
-          <tr><td>测新</td><td>英语</td><td>运营A</td><td>tpl_en_default</td><td>运营A 测新默认</td></tr>
-          <tr><td>测新</td><td>韩语</td><td>运营B</td><td>tpl_kr_small</td><td>运营B 测新默认</td></tr>
-          <tr><td>跟投</td><td>韩语</td><td>系统</td><td>tpl_kr_follow</td><td>跟投默认（系统）</td></tr>
-          <tr><td>跟投</td><td>英语</td><td>系统</td><td>tpl_en_follow</td><td>跟投默认（系统）</td></tr>
-          <tr><td>测新</td><td>中文</td><td>运营A</td><td>—</td><td><span class="tag tag-red">未配置，该场景+语言信号将跳过并告警</span></td></tr>
-        </tbody>
+        <thead><tr><th>场景</th><th>语种</th><th>用户</th><th>绑定 Meta 自动化任务</th><th>绑定 TikTok 自动化任务</th></tr></thead>
+        <tbody id="taskTable"></tbody>
       </table>
     </div>
-    <table>
-      <thead><tr><th>模板ID</th><th>模板名</th><th>场景</th><th>语言</th><th>关联自动化任务配置</th><th>创建时间</th><th>操作</th></tr></thead>
-      <tbody id="tplTable">
-        <tr><td>tpl_kr_default</td><td>韩语测新</td><td>测新</td><td>韩语</td><td>att_kr_test_001</td><td>2026-08-02</td><td><span class="link" onclick="openTemplate(this)">编辑</span></td></tr>
-        <tr><td>tpl_en_default</td><td>英语测新</td><td>测新</td><td>英语</td><td>att_en_test_001</td><td>2026-08-02</td><td><span class="link" onclick="openTemplate(this)">编辑</span></td></tr>
-        <tr><td>tpl_kr_small</td><td>韩语测新小预算</td><td>测新</td><td>韩语</td><td>att_kr_test_small_001</td><td>2026-08-05</td><td><span class="link" onclick="openTemplate(this)">编辑</span></td></tr>
-        <tr><td>tpl_kr_follow</td><td>韩语跟投</td><td>跟投</td><td>韩语</td><td>att_kr_follow_001</td><td>2026-08-05</td><td><span class="link" onclick="openTemplate(this)">编辑</span></td></tr>
-        <tr><td>tpl_en_follow</td><td>英语跟投</td><td>跟投</td><td>英语</td><td>att_en_follow_001</td><td>2026-08-05</td><td><span class="link" onclick="openTemplate(this)">编辑</span></td></tr>
-      </tbody>
-    </table>
   </div>
 </div>
 
-<!-- 告警 -->
-<div class="outer-page" id="outer-alert" style="display:none">
-  <div class="content">
-    <div class="filters">
-      <label>级别</label>
-      <select id="alertLevel"><option value="">全部</option><option>警告</option><option>错误</option></select>
-      <label>类型</label>
-      <select id="alertType"><option value="">全部</option><option>无匹配模板</option><option>决策数据异常</option><option>连续失败</option></select>
-      <button class="btn-primary" onclick="o()">查询</button>
-      <button class="reset" onclick="o()">重置</button>
-    </div>
-    <div class="card alert-card">
-      <h3>⚠ 无匹配模板</h3>
-      <div class="reason">2026-08-14 14:15 · 信号 sg_20260814_1415_03 · 广告计划 cp_8891 的语言未配置模板，请到模板管理补充。</div>
-    </div>
-    <div class="card">
-      <h3>错误 · 连续失败</h3>
-      <div class="reason">2026-08-14 12:10 · 起任务连续失败 3 次，请检查自动化任务对接。</div>
-    </div>
-  </div>
-</div>
-
-<!-- 详情弹窗 -->
+<!-- 清单详情弹窗 -->
 <div class="modal-mask" id="detailMask">
   <div class="modal">
     <h2>清单详情</h2>
-    <div class="form-row"><label>短剧</label><div>LA001 霸总的替嫁新娘（2044271853970653185）</div></div>
-    <div class="form-row"><label>语言</label><div>韩语</div></div>
+    <div class="form-row"><label>短剧</label><div id="detailDrama">LA001 霸总的替嫁新娘</div></div>
+    <div class="form-row"><label>语言</label><div id="detailLang">韩语</div></div>
     <div class="form-row">
-      <label>模板</label>
-      <select id="detailTpl">
-        <option>kr_default</option>
-        <option>kr_small</option>
-        <option>kr_large</option>
-      </select>
-      <div class="hint">默认预选当前操作人的默认模板（每人不同），可换选</div>
+      <label>绑定 Meta 自动化任务</label>
+      <div id="detailMeta"></div>
+    </div>
+    <div class="form-row">
+      <label>绑定 TikTok 自动化任务</label>
+      <div id="detailTT"></div>
+      <div class="hint">默认预选该语种在默认自动化任务表中的绑定，可搜索换选</div>
     </div>
     <div class="form-row">
       <label>排期（东八区）</label>
       <input type="datetime-local" id="detailSchedule" value="2026-08-15T10:00">
-      <div class="hint">确认后立即启动自动化任务，排期作为参数传给自动化任务到点执行；留空表示立即执行</div>
+      <div class="hint">确认后立即绑定到该自动化任务；排期作为参数到点执行，留空表示立即执行</div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeDetail()">取消</button>
       <button class="btn danger" onclick="rejectAndClose()">驳回</button>
-      <button class="btn primary" onclick="approveAndClose()">通过并拉起任务</button>
+      <button class="btn primary" onclick="approveAndBind()">通过并绑定</button>
     </div>
   </div>
 </div>
 
-<!-- 模板弹窗 -->
-<div class="modal-mask" id="tplMask">
-  <div class="modal">
-    <h2 id="tplTitle">新增模板</h2>
-    <div class="form-row"><label>模板名</label><input id="tplName" placeholder="如 韩语测新"></div>
-    <div class="form-row"><label>场景</label><select id="tplScene"><option>测新</option><option>跟投</option></select></div>
-    <div class="form-row"><label>语言</label><select id="tplLang"><option>中文</option><option>英语</option><option>韩语</option><option>泰语</option><option>马来语</option></select></div>
-    <div class="form-row">
-      <label>用户</label>
-      <select id="tplUser"><option>系统</option><option>运营A</option><option>运营B</option><option>运营C</option></select>
-      <div class="hint">默认模板按用户维护，每人不同；跟投默认归「系统」</div>
-    </div>
-    <div class="form-row">
-      <label>关联自动化任务配置</label>
-      <select id="tplRef">
-        <option>att_kr_test_001</option>
-        <option>att_en_test_001</option>
-        <option>att_kr_test_small_001</option>
-        <option>att_kr_follow_001</option>
-        <option>att_en_follow_001</option>
-      </select>
-      <div class="hint">指向自动化任务的配置，执行参数由其承载</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeTemplate()">取消</button>
-      <button class="btn primary" onclick="saveTemplate()">保存</button>
-    </div>
-  </div>
-</div>
 
 <script>
-  // 外层 Tab
-  const crumbNames={dashboard:'运行概览',checklist:'测新清单',template:'模板管理',alert:'告警'};
-  document.querySelectorAll('.outer-tab').forEach(t=>{
-    t.addEventListener('click',()=>{
-      document.querySelectorAll('.outer-tab').forEach(x=>x.classList.remove('active'));
-      t.classList.add('active');
-      const o=t.dataset.outer;
-      document.querySelectorAll('.outer-page').forEach(p=>p.style.display='none');
-      const page=document.getElementById('outer-'+o);
-      if(page) page.style.display='block';
-      document.getElementById('crumb').textContent = crumbNames[o]||'';
-    });
+// 外层 Tab
+const crumbNames={dashboard:'运行概览',checklist:'测新清单',tasks:'默认自动化任务'};
+document.querySelectorAll('.outer-tab').forEach(t=>{
+  t.addEventListener('click',()=>switchOuter(t.dataset.outer));
+});
+function switchOuter(o){
+  document.querySelectorAll('.outer-tab').forEach(x=>x.classList.toggle('active',x.dataset.outer===o));
+  document.querySelectorAll('.outer-page').forEach(p=>{p.style.display=p.id==='outer-'+o?'block':'none';});
+  document.getElementById('crumb').textContent=crumbNames[o]||'';
+}
+// 内层 Tab
+document.querySelectorAll('.inner-tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.inner-tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+t.dataset.page).classList.add('active');
+    const names={overview:'运行概览',records:'执行记录',results:'投放结果',accounts:'账户池状态'};
+    document.getElementById('crumb').textContent=names[t.dataset.page];
   });
-  // 内层 Tab
-  document.querySelectorAll('.inner-tab').forEach(t=>{
-    t.addEventListener('click',()=>{
-      document.querySelectorAll('.inner-tab').forEach(x=>x.classList.remove('active'));
-      t.classList.add('active');
-      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-      document.getElementById('page-'+t.dataset.page).classList.add('active');
-      const names={overview:'运行概览',records:'执行记录',results:'投放结果',accounts:'账户池状态'};
-      document.getElementById('crumb').textContent=names[t.dataset.page];
-    });
+});
+function o(){/* 查询（原型占位，无后端） */return false;}
+
+// ---- 数据（原型占位） ----
+const CUR_USER='运营A'; // 后台当前操作人（开发期从登录态取）
+const DRAMAS=[
+  {id:'LA001',name:'霸总的替嫁新娘',lang:'韩语'},
+  {id:'LA002',name:'重生之都市医仙',lang:'英语'},
+  {id:'LA003',name:'小姨我爱你',lang:'中文'},
+  {id:'LA004',name:'小娇妻马甲藏不住了',lang:'韩语'},
+  {id:'LA005',name:'闪婚老公是大佬',lang:'韩语'},
+  {id:'LA006',name:'天才萌宝找上门',lang:'泰语'},
+  {id:'LA007',name:'总裁的替身白月光',lang:'英语'},
+  {id:'LA008',name:'落日余晖下的吻',lang:'英语'},
+  {id:'LA009',name:'国色天香',lang:'韩语'},
+  {id:'LA010',name:'逆光而行',lang:'英语'},
+];
+// 从 Meta / TikTok 两个自动化任务系统拉取的自动化任务（外部系统数据，开发期经 API 拉取）
+const META_TASKS=[
+  {id:'meta_kr_test',name:'韩语测新（Meta）'},
+  {id:'meta_en_test',name:'英语测新（Meta）'},
+  {id:'meta_zh_test',name:'中文测新（Meta）'},
+  {id:'meta_th_test',name:'泰语测新（Meta）'},
+  {id:'meta_kr_follow',name:'韩语跟投（Meta）'},
+  {id:'meta_en_follow',name:'英语跟投（Meta）'},
+  {id:'meta_my_follow',name:'马来语跟投（Meta）'},
+];
+const TT_TASKS=[
+  {id:'tt_kr_test',name:'韩语测新（TikTok）'},
+  {id:'tt_en_test',name:'英语测新（TikTok）'},
+  {id:'tt_zh_test',name:'中文测新（TikTok）'},
+  {id:'tt_th_test',name:'泰语测新（TikTok）'},
+  {id:'tt_kr_follow',name:'韩语跟投（TikTok）'},
+  {id:'tt_en_follow',name:'英语跟投（TikTok）'},
+  {id:'tt_my_follow',name:'马来语跟投（TikTok）'},
+];
+// 默认自动化任务：场景-语种 → Meta / TikTok 各绑一条外部自动化任务（用户取后台当前操作人；跟投归系统）
+const bindings={
+  '测新-韩语':{meta:'meta_kr_test',tt:'tt_kr_test'},
+  '测新-英语':{meta:'meta_en_test',tt:'tt_en_test'},
+  '跟投-韩语':{meta:'meta_kr_follow',tt:'tt_kr_follow'},
+  '跟投-英语':{meta:'meta_en_follow',tt:'tt_en_follow'},
+};
+function taskList(platform){return platform==='meta'?META_TASKS:TT_TASKS;}
+function nameById(platform,id){
+  const t=taskList(platform).find(x=>x.id===id);
+  return t?t.name:id;
+}
+
+// ---- 搜索下拉组件（绑定自动化任务）----
+function ssHTML(platform, selId, role, key){
+  const selName=selId?nameById(platform,selId):'';
+  const attrs=(key?' data-key="'+key+'"':'')+(role?' data-role="'+role+'"':'');
+  return '<div class="ss-wrap" data-plat="'+platform+'" data-sel="'+(selId||'')+'"'+attrs+'>'
+    +'<input class="ss-input" placeholder="搜索 / 选择 '+(platform==='meta'?'Meta':'TikTok')+' 任务…" autocomplete="off" value="'+selName+'">'
+    +'<div class="ss-list">'
+      +'<div class="ss-opt'+(selId?'':' cur')+'" data-val="" data-search="未配置">未配置</div>'
+      +taskList(platform).map(t=>'<div class="ss-opt'+(t.id===selId?' cur':'')+'" data-val="'+t.id+'" data-search="'+t.id+' '+t.name+'">'+t.name+'</div>').join('')
+    +'</div></div>';
+}
+// 事件委托：搜索 / 展开 / 选择（对页面内所有 .ss-wrap 生效）
+document.addEventListener('input',e=>{
+  const inp=e.target.closest('.ss-input');
+  if(!inp)return;
+  const kw=inp.value.trim().toLowerCase();
+  [...inp.nextElementSibling.querySelectorAll('.ss-opt')].forEach(o=>{
+    o.hidden=kw?!o.dataset.search.toLowerCase().includes(kw):false;
   });
-  function o(){/* 查询（原型占位，无后端） */return false;}
-  function confirmList(row){
-    if(!confirm('确认通过该测新清单并拉起任务？'))return;
-    row.cells[6].innerHTML='<span class="tag tag-green">已通过</span>';
-    row.cells[7].innerHTML='<span class="link" onclick="openDetail()">详情</span>';
+});
+document.addEventListener('click',e=>{
+  const inp=e.target.closest('.ss-input');
+  if(inp){
+    const wrap=inp.closest('.ss-wrap');
+    document.querySelectorAll('.ss-wrap').forEach(w=>w!==wrap&&w.classList.remove('ss-open'));
+    wrap.classList.toggle('ss-open');
+    inp.value=wrap.dataset.sel?nameById(wrap.dataset.plat,wrap.dataset.sel):'';
+    [...inp.nextElementSibling.querySelectorAll('.ss-opt')].forEach(o=>{o.hidden=false;});
+    return;
   }
-  function rejectList(row){
-    if(!confirm('确认驳回该测新清单？'))return;
-    row.cells[6].innerHTML='<span class="tag tag-red">已驳回</span>';
-    row.cells[7].innerHTML='<span class="link" onclick="openDetail()">详情</span>';
+  if(!e.target.closest('.ss-list'))document.querySelectorAll('.ss-wrap').forEach(w=>w.classList.remove('ss-open'));
+});
+document.addEventListener('mousedown',e=>{
+  const opt=e.target.closest('.ss-opt');
+  if(!opt)return;
+  e.preventDefault(); // 避免触发 input 的 blur
+  const wrap=opt.closest('.ss-wrap');
+  const val=opt.dataset.val;
+  wrap.dataset.sel=val;
+  wrap.querySelector('.ss-input').value=val?opt.textContent:'';
+  wrap.classList.remove('ss-open');
+  if(wrap.dataset.role==='detail-meta')curMeta=val;
+  else if(wrap.dataset.role==='detail-tt')curTT=val;
+  else if(wrap.dataset.key)setBind(wrap.dataset.key,wrap.dataset.plat,val);
+});
+
+// ---- 默认自动化任务：正交全表 + 内联搜索下拉（无需弹窗）----
+function setBind(key,platform,val){
+  const b=bindings[key]||{meta:'',tt:''};
+  b[platform]=val;
+  bindings[key]=b;
+}
+function rerenderTaskTable(){
+  const tb=document.getElementById('taskTable');
+  const scenes=['测新','跟投'], langs=['中文','英语','韩语','泰语','马来语'];
+  tb.innerHTML='';
+  for(const scene of scenes) for(const lang of langs){
+    const key=scene+'-'+lang;
+    const b=bindings[key]||{meta:'',tt:''};
+    const user=scene==='跟投'?'系统':CUR_USER;
+    tb.insertAdjacentHTML('beforeend',
+      '<tr><td>'+scene+'</td><td>'+lang+'</td><td>'+user+'</td>'
+      +'<td>'+ssHTML('meta',b.meta||'',null,key)+'</td>'
+      +'<td>'+ssHTML('tt',b.tt||'',null,key)+'</td></tr>');
   }
-  // 批量选择（仅勾选状态为「待确认」的可操作行）
-  function clEnabledBoxes(){
-    return [...document.querySelectorAll('#clTable .cl-checkbox')].filter(c=>!c.disabled);
+}
+
+// ---- 测新清单：确认 / 驳回 / 批量 ----
+let curDrama=null, curRow=null, curMeta='', curTT='';
+function confirmList(row){
+  if(!confirm('确认通过该测新清单并绑定到自动化任务？'))return;
+  row.cells[6].innerHTML='<span class="tag tag-green">已通过</span>';
+  row.cells[7].innerHTML='<span class="link" onclick="openDetail(this)">详情</span>';
+}
+function rejectList(row){
+  if(!confirm('确认驳回该测新清单？'))return;
+  row.cells[6].innerHTML='<span class="tag tag-red">已驳回</span>';
+  row.cells[7].innerHTML='<span class="link" onclick="openDetail(this)">详情</span>';
+}
+function clEnabledBoxes(){
+  return [...document.querySelectorAll('#clTable .cl-checkbox')].filter(c=>!c.disabled);
+}
+function updateClSelCount(){
+  const n=clEnabledBoxes().filter(c=>c.checked).length;
+  document.getElementById('clSelCount').textContent=n;
+}
+document.querySelector('.cl-checkbox-all').addEventListener('change',e=>{
+  clEnabledBoxes().forEach(c=>c.checked=e.target.checked);
+  updateClSelCount();
+});
+document.querySelectorAll('#clTable .cl-checkbox').forEach(c=>{
+  c.addEventListener('change',updateClSelCount);
+});
+function batchConfirm(){
+  const sel=clEnabledBoxes().filter(c=>c.checked);
+  if(!sel.length){alert('请先勾选要批量通过的清单');return;}
+  const v=document.getElementById('batchSchedule').value;
+  const schedule=v?v.replace('T',' '):'立即';
+  if(!confirm('确认批量通过选中的 '+sel.length+' 条测新清单'+(v?'（排期 '+schedule+'）':'')+'？'))return;
+  sel.forEach(cb=>{const row=cb.closest('tr');row.cells[4].textContent=schedule;row.cells[6].innerHTML='<span class="tag tag-green">已通过</span>';row.cells[7].innerHTML='<span class="link" onclick="openDetail(this)">详情</span>';cb.checked=false;cb.disabled=true;});
+  updateClSelCount();
+}
+function batchReject(){
+  const sel=clEnabledBoxes().filter(c=>c.checked);
+  if(!sel.length){alert('请先勾选要批量驳回的清单');return;}
+  if(!confirm('确认批量驳回选中的 '+sel.length+' 条测新清单？'))return;
+  sel.forEach(cb=>{const row=cb.closest('tr');row.cells[6].innerHTML='<span class="tag tag-red">已驳回</span>';row.cells[7].innerHTML='<span class="link" onclick="openDetail(this)">详情</span>';cb.checked=false;cb.disabled=true;});
+  updateClSelCount();
+}
+
+// ---- 清单详情弹窗：绑定 Meta + TikTok 自动化任务 ----
+function openDetail(elm){
+  const row=elm?elm.closest('tr'):null;
+  curRow=row;
+  const dramaText=row?row.cells[2].textContent.trim():'LA001 霸总的替嫁新娘';
+  curDrama={id:dramaText.split(' ')[0],name:dramaText};
+  curDrama.lang=row?row.cells[3].textContent.trim():'韩语';
+  document.getElementById('detailDrama').textContent=curDrama.name;
+  document.getElementById('detailLang').textContent=curDrama.lang;
+  // 默认绑定 = 该语种的默认自动化任务（测新优先），Meta / TikTok 分别回填，可搜索换选
+  const keys=['测新-'+curDrama.lang,'跟投-'+curDrama.lang];
+  const key=keys.find(k=>bindings[k])||Object.keys(bindings).find(k=>k.endsWith(curDrama.lang))||keys[0];
+  const b=bindings[key]||{meta:'',tt:''};
+  curMeta=b.meta||''; curTT=b.tt||'';
+  document.getElementById('detailMeta').innerHTML=ssHTML('meta',curMeta,'detail-meta');
+  document.getElementById('detailTT').innerHTML=ssHTML('tt',curTT,'detail-tt');
+  document.getElementById('detailMask').classList.add('show');
+}
+function closeDetail(){document.getElementById('detailMask').classList.remove('show');}
+function rejectAndClose(){closeDetail();}
+function approveAndBind(){
+  if(!curMeta&&!curTT){alert('请选择至少一个平台的自动化任务');return;}
+  if(curRow){
+    curRow.cells[6].innerHTML='<span class="tag tag-green">已通过</span>';
+    curRow.cells[7].innerHTML='<span class="link" onclick="openDetail(this)">详情</span>';
   }
-  function updateClSelCount(){
-    const n=clEnabledBoxes().filter(c=>c.checked).length;
-    document.getElementById('clSelCount').textContent=n;
-  }
-  document.querySelector('.cl-checkbox-all').addEventListener('change',e=>{
-    clEnabledBoxes().forEach(c=>c.checked=e.target.checked);
-    updateClSelCount();
-  });
-  document.querySelectorAll('#clTable .cl-checkbox').forEach(c=>{
-    c.addEventListener('change',updateClSelCount);
-  });
-  function batchConfirm(){
-    const sel=clEnabledBoxes().filter(c=>c.checked);
-    if(!sel.length){alert('请先勾选要批量通过的清单');return;}
-    const v=document.getElementById('batchSchedule').value;
-    const schedule=v?v.replace('T',' '):'立即';
-    if(!confirm('确认批量通过选中的 '+sel.length+' 条测新清单'+(v?'（排期 '+schedule+'）':'')+'？'))return;
-    sel.forEach(cb=>{const row=cb.closest('tr');row.cells[4].textContent=schedule;row.cells[6].innerHTML='<span class="tag tag-green">已通过</span>';row.cells[7].innerHTML='<span class="link" onclick="openDetail()">详情</span>';cb.checked=false;cb.disabled=true;});
-    updateClSelCount();
-  }
-  function batchReject(){
-    const sel=clEnabledBoxes().filter(c=>c.checked);
-    if(!sel.length){alert('请先勾选要批量驳回的清单');return;}
-    if(!confirm('确认批量驳回选中的 '+sel.length+' 条测新清单？'))return;
-    sel.forEach(cb=>{const row=cb.closest('tr');row.cells[6].innerHTML='<span class="tag tag-red">已驳回</span>';row.cells[7].innerHTML='<span class="link" onclick="openDetail()">详情</span>';cb.checked=false;cb.disabled=true;});
-    updateClSelCount();
-  }
-  function openDetail(){document.getElementById('detailMask').classList.add('show');}
-  function closeDetail(){document.getElementById('detailMask').classList.remove('show');}
-  function approveAndClose(){closeDetail();}
-  function rejectAndClose(){closeDetail();}
-  function openTemplate(row){
-    document.getElementById('tplTitle').textContent = row?'编辑模板':'新增模板';
-    document.getElementById('tplMask').classList.add('show');
-  }
-  function closeTemplate(){document.getElementById('tplMask').classList.remove('show');}
-  function saveTemplate(){closeTemplate();}
+  closeDetail();
+  const m=curMeta?curMeta+' · '+nameById('meta',curMeta):'未配置';
+  const t=curTT?curTT+' · '+nameById('tt',curTT):'未配置';
+  alert('已绑定：'+curDrama.name+' → Meta：'+m+' ／ TikTok：'+t); // 开发期：分别调用 Meta / TikTok 自动化任务系统绑定短剧
+}
+
+// ---- 初始化 ----
+rerenderTaskTable();
 </script>
 </body>
 </html>
