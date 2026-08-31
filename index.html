@@ -193,11 +193,38 @@
 <div class="outer-page" id="outer-tasks" style="display:none">
   <div class="content">
     <div class="card">
-      <h3 style="margin:0 0 12px">默认自动化任务（场景 × 语种）</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">测新默认自动化任务</h3>
+        <button class="btn primary" onclick="openAddTask()">新增配置</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">已覆盖的语种禁止重复新增</div>
       <table>
-        <thead><tr><th>场景</th><th>语种</th><th>用户</th><th>绑定 Meta 自动化任务</th><th>绑定 TikTok 自动化任务</th></tr></thead>
+        <thead><tr><th>语种</th><th>绑定 Meta 自动化任务</th><th>绑定 TikTok 自动化任务</th><th>操作</th></tr></thead>
         <tbody id="taskTable"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- 新增测新默认配置 -->
+<div class="modal-mask" id="taskMask">
+  <div class="modal">
+    <h2>新增测新默认配置</h2>
+    <div class="form-row">
+      <label>语种（已配置语种不可重复新增）</label>
+      <select id="addLang"></select>
+    </div>
+    <div class="form-row">
+      <label>绑定 Meta 自动化任务</label>
+      <div id="addMeta"></div>
+    </div>
+    <div class="form-row">
+      <label>绑定 TikTok 自动化任务</label>
+      <div id="addTT"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAddTask()">取消</button>
+      <button class="btn primary" onclick="confirmAddTask()">保存</button>
     </div>
   </div>
 </div>
@@ -298,12 +325,11 @@ const TT_TASKS=[
   {id:'tt_en_follow',name:'英语跟投（TikTok）'},
   {id:'tt_my_follow',name:'马来语跟投（TikTok）'},
 ];
-// 默认自动化任务：场景-语种 → Meta / TikTok 各绑一条外部自动化任务（用户取后台当前操作人；跟投归系统）
+// 测新默认自动化任务（第一期仅测新）：语种 → Meta / TikTok 各绑一条外部自动化任务，按当前操作人维护
+const LANGS=['中文','英语','韩语','泰语','马来语'];
 const bindings={
   '测新-韩语':{meta:'meta_kr_test',tt:'tt_kr_test'},
   '测新-英语':{meta:'meta_en_test',tt:'tt_en_test'},
-  '跟投-韩语':{meta:'meta_kr_follow',tt:'tt_kr_follow'},
-  '跟投-英语':{meta:'meta_en_follow',tt:'tt_en_follow'},
 };
 function taskList(platform){return platform==='meta'?META_TASKS:TT_TASKS;}
 function nameById(platform,id){
@@ -371,17 +397,40 @@ function setBind(key,platform,val){
 }
 function rerenderTaskTable(){
   const tb=document.getElementById('taskTable');
-  const scenes=['测新','跟投'], langs=['中文','英语','韩语','泰语','马来语'];
   tb.innerHTML='';
-  for(const scene of scenes) for(const lang of langs){
-    const key=scene+'-'+lang;
-    const b=bindings[key]||{meta:'',tt:''};
-    const user=scene==='跟投'?'系统':CUR_USER;
+  for(const lang of LANGS){
+    const b=bindings['测新-'+lang];
+    if(!b)continue; // 仅展示当前操作人已配置的条目；列表只读，改绑=删除后重新新增
     tb.insertAdjacentHTML('beforeend',
-      '<tr><td>'+scene+'</td><td>'+lang+'</td><td>'+user+'</td>'
-      +'<td>'+ssHTML('meta',b.meta||'',null,key)+'</td>'
-      +'<td>'+ssHTML('tt',b.tt||'',null,key)+'</td></tr>');
+      '<tr><td>'+lang+'</td>'
+      +'<td>'+(nameById('meta',b.meta||'')||'未配置')+'</td>'
+      +'<td>'+(nameById('tt',b.tt||'')||'未配置')+'</td>'
+      +'<td><button class="btn danger" onclick="removeTask(\''+lang+'\')">删除</button></td></tr>');
   }
+}
+function openAddTask(){
+  document.getElementById('addLang').innerHTML='<option value="">请选择语种</option>'+LANGS.map(l=>'<option>'+l+'</option>').join('');
+  document.getElementById('addMeta').innerHTML=ssHTML('meta');
+  document.getElementById('addTT').innerHTML=ssHTML('tt');
+  document.getElementById('taskMask').classList.add('show');
+}
+function closeAddTask(){document.getElementById('taskMask').classList.remove('show');}
+function confirmAddTask(){
+  const lang=document.getElementById('addLang').value;
+  if(!lang){alert('请选择语种');return;}
+  if(bindings['测新-'+lang]){alert('该语种已配置测新默认任务，禁止重复新增');return;}
+  const meta=document.querySelector('#addMeta .ss-wrap').dataset.sel||'';
+  const tt=document.querySelector('#addTT .ss-wrap').dataset.sel||'';
+  if(!meta&&!tt){alert('请至少为一个平台绑定自动化任务');return;}
+  bindings['测新-'+lang]={meta:meta,tt:tt};
+  document.getElementById('taskMask').classList.remove('show');
+  rerenderTaskTable();
+}
+function removeTask(lang){
+  const key='测新-'+lang;
+  if(!confirm('删除「'+lang+'」测新默认配置？删除后该语种测新将跳过并告警。'))return;
+  delete bindings[key];
+  rerenderTaskTable();
 }
 
 // ---- 测新清单：勾选短剧批量发起测新（NEW_DRAMA_ONLINE 仅提醒，测新由用户发起）----
@@ -442,7 +491,7 @@ function batchInitiateTest(){
 // ---- 测新确认弹窗：批量确认（默认配置列表 + 统一排期），确认后绑定并进入执行记录 ----
 let batchSel=[], recSeq=1;
 function taskGridHTML(){
-  const scenes=['测新'], langs=['中文','英语','韩语','泰语','马来语'];
+  const scenes=['测新'], langs=LANGS;
   let html='<table><thead><tr><th>场景</th><th>语种</th><th>绑定 Meta 任务</th><th>绑定 TikTok 任务</th></tr></thead><tbody>';
   for(const scene of scenes) for(const lang of langs){
     const b=bindings[scene+'-'+lang]||{meta:'',tt:''};
