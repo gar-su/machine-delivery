@@ -209,7 +209,7 @@
 <!-- 新增测新默认配置 -->
 <div class="modal-mask" id="taskMask">
   <div class="modal">
-    <h2>新增测新默认配置</h2>
+    <h2 id="taskModalTitle">新增测新默认配置</h2>
     <div class="form-row">
       <label>语种（已配置语种不可重复新增）</label>
       <select id="addLang"></select>
@@ -331,6 +331,7 @@ const bindings={
   '测新-韩语':{meta:'meta_kr_test',tt:'tt_kr_test'},
   '测新-英语':{meta:'meta_en_test',tt:'tt_en_test'},
 };
+let editingLang=''; // 编辑态：默认自动化任务弹窗当前编辑的语种（空=新增）
 function taskList(platform){return platform==='meta'?META_TASKS:TT_TASKS;}
 function nameById(platform,id){
   const t=taskList(platform).find(x=>x.id===id);
@@ -405,24 +406,39 @@ function rerenderTaskTable(){
       '<tr><td>'+lang+'</td>'
       +'<td>'+(nameById('meta',b.meta||'')||'未配置')+'</td>'
       +'<td>'+(nameById('tt',b.tt||'')||'未配置')+'</td>'
-      +'<td><button class="btn danger" onclick="removeTask(\''+lang+'\')">删除</button></td></tr>');
+      +'<td><button class="btn" onclick="editTask(\''+lang+'\')">编辑</button> <button class="btn danger" onclick="removeTask(\''+lang+'\')">删除</button></td></tr>');
   }
 }
 function openAddTask(){
+  editingLang='';
+  document.getElementById('taskModalTitle').textContent='新增测新默认配置';
   document.getElementById('addLang').innerHTML='<option value="">请选择语种</option>'+LANGS.map(l=>'<option>'+l+'</option>').join('');
   document.getElementById('addMeta').innerHTML=ssHTML('meta');
   document.getElementById('addTT').innerHTML=ssHTML('tt');
   document.getElementById('taskMask').classList.add('show');
 }
-function closeAddTask(){document.getElementById('taskMask').classList.remove('show');}
+function editTask(lang){
+  const b=bindings['测新-'+lang]||{meta:'',tt:''};
+  editingLang=lang;
+  document.getElementById('taskModalTitle').textContent='编辑测新默认配置';
+  document.getElementById('addLang').innerHTML='<option>'+lang+'</option>'; // 编辑仅改任务绑定，语种固定
+  document.getElementById('addMeta').innerHTML=ssHTML('meta',b.meta);
+  document.getElementById('addTT').innerHTML=ssHTML('tt',b.tt);
+  document.getElementById('taskMask').classList.add('show');
+}
+function closeAddTask(){
+  editingLang='';
+  document.getElementById('taskMask').classList.remove('show');
+}
 function confirmAddTask(){
-  const lang=document.getElementById('addLang').value;
+  const lang=editingLang||document.getElementById('addLang').value;
   if(!lang){alert('请选择语种');return;}
-  if(bindings['测新-'+lang]){alert('该语种已配置测新默认任务，禁止重复新增');return;}
+  if(!editingLang&&bindings['测新-'+lang]){alert('该语种已配置测新默认任务，禁止重复新增');return;}
   const meta=document.querySelector('#addMeta .ss-wrap').dataset.sel||'';
   const tt=document.querySelector('#addTT .ss-wrap').dataset.sel||'';
   if(!meta&&!tt){alert('请至少为一个平台绑定自动化任务');return;}
   bindings['测新-'+lang]={meta:meta,tt:tt};
+  editingLang='';
   document.getElementById('taskMask').classList.remove('show');
   rerenderTaskTable();
 }
