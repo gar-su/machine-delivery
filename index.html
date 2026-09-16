@@ -28,9 +28,11 @@
   .card h3{font-size:14px;margin-bottom:12px}
   .filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px}
   .filters label{font-size:13px;color:var(--muted)}
-  .filters input,.filters select,.filters button{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px}
+  .filters input,.filters select,.filters button,.filters textarea{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px}
   .filters .date-input{width:140px}
   .filters .kw-input{width:260px}
+  .filters .kw-area{width:260px;height:34px;resize:vertical;font-family:inherit}
+  .filters button.mode-btn{background:#fff;color:var(--muted);cursor:pointer;font-size:12px;padding:7px 8px}
   .filters button.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary);cursor:pointer}
   .filters button.reset{background:#fff;cursor:pointer}
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -160,8 +162,17 @@
       <select id="drLang">
         <option value="">全部</option><option>中文</option><option>英语</option><option>韩语</option><option>泰语</option><option>马来语</option>
       </select>
-      <label>短剧</label><input id="drKw" class="kw-input" placeholder="搜索短剧名或剧本编号，如「霸总」或「LA001」">
-      <button class="btn-primary" onclick="renderDramaTable()">查询</button>
+      <label>短剧名</label>
+      <input id="drName" class="kw-input" placeholder="短剧名关键词，如 霸总">
+      <textarea id="drNameMulti" class="kw-area" placeholder="每行一个短剧名" hidden></textarea>
+      <button class="mode-btn" id="drNameMode" title="切换到批量搜索（每行一个值）" onclick="toggleKwMode('drName')">批量</button>
+      <label>剧本编号</label>
+      <input id="drScript" class="kw-input" placeholder="剧本编号，如 LA001">
+      <textarea id="drScriptMulti" class="kw-area" placeholder="每行一个剧本编号，如 LA001" hidden></textarea>
+      <button class="mode-btn" id="drScriptMode" title="切换到批量搜索（每行一个值）" onclick="toggleKwMode('drScript')">批量</button>
+      <label>上线时间</label>
+      <input type="date" class="date-input" id="drOnline1"><span style="color:var(--muted)">至</span><input type="date" class="date-input" id="drOnline2">
+      <button class="btn-primary" onclick="drSearch()">查询</button>
     </div>
     <div class="batch-form">
       <div class="batch-form-title">批量发起测新 · 已选 <b id="drSelCount">0</b> 部短剧</div>
@@ -171,7 +182,7 @@
       </div>
     </div>
     <table>
-      <thead><tr><th><input type="checkbox" class="dr-checkbox-all"></th><th>剧本编号</th><th>剧本名</th><th>短剧名</th><th>语言</th><th>上线状态</th></tr></thead>
+      <thead><tr><th><input type="checkbox" class="dr-checkbox-all"></th><th>剧本编号</th><th>剧本名</th><th>短剧名</th><th>语言</th><th>上线时间</th><th>初次投放时间</th><th>上线状态</th></tr></thead>
       <tbody id="drTable"></tbody>
     </table>
     <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px">
@@ -279,32 +290,33 @@ document.querySelectorAll('.inner-tab').forEach(t=>{
 // ---- 数据（原型占位） ----
 const CUR_USER='运营A'; // 后台当前操作人（开发期从登录态取）
 // 测新清单数据：剧本（编号 script）与短剧两级；isNew=true 表示由 NEW_DRAMA_ONLINE 信号提醒进入（仅提醒，不自动触发测新）
+// onlineAt=上线 / 预上线时间，firstDeliverAt=初次投放时间（两者均由上游带入，初次投放时间为空表示上游无投放记录）
 const DRAMAS=[
-  {id:'LA001',script:'替嫁新娘',name:'霸总的替嫁新娘',lang:'韩语',isNew:true},
-  {id:'LA002',script:'都市医仙',name:'重生之都市医仙',lang:'英语',isNew:true},
-  {id:'LA003',script:'小姨我爱你',name:'小姨我爱你',lang:'中文',isNew:true},
-  {id:'LA004',script:'小娇妻马甲',name:'小娇妻马甲藏不住了',lang:'韩语'},
-  {id:'LA005',script:'闪婚老公',name:'闪婚老公是大佬',lang:'韩语'},
-  {id:'LA006',script:'天才萌宝',name:'天才萌宝找上门',lang:'泰语'},
-  {id:'LA007',script:'替身白月光',name:'总裁的替身白月光',lang:'英语'},
-  {id:'LA008',script:'落日余晖',name:'落日余晖下的吻',lang:'英语'},
-  {id:'LA009',script:'国色天香',name:'国色天香',lang:'韩语'},
-  {id:'LA010',script:'逆光而行',name:'逆光而行',lang:'英语'},
-  {id:'LA011',script:'宠妃升职记',name:'宠妃升职记',lang:'韩语'},
-  {id:'LA012',script:'至尊龙婿',name:'至尊龙婿',lang:'中文'},
-  {id:'LA013',script:'甜妻上门',name:'甜妻上门',lang:'英语'},
-  {id:'LA014',script:'隐婚妻子',name:'大佬的隐婚妻子',lang:'韩语'},
-  {id:'LA015',script:'团宠',name:'重生的我成了团宠',lang:'泰语'},
-  {id:'LA016',script:'前夫',name:'前夫请走开',lang:'英语'},
-  {id:'LA017',script:'宠妻',name:'将军的宠妻',lang:'中文'},
-  {id:'LA018',script:'医妃天下',name:'医妃天下',lang:'马来语'},
-  {id:'LA019',script:'迷人娇妻',name:'娇妻太迷人',lang:'韩语'},
-  {id:'LA020',script:'开局一个碗',name:'开局一个碗',lang:'英语'},
-  {id:'LA021',script:'林深时见鹿',name:'林深时见鹿',lang:'中文'},
-  {id:'LA022',script:'重生白月光',name:'白月光她重生归来',lang:'韩语'},
-  {id:'LA023',script:'隐婚总裁',name:'隐婚总裁夜夜求撩',lang:'英语'},
-  {id:'LA024',script:'福气农家',name:'穿越之福气农家',lang:'泰语'},
-  {id:'LA025',script:'腹黑王爷',name:'腹黑王爷宠上瘾',lang:'中文'},
+  {id:'LA001',script:'替嫁新娘',name:'霸总的替嫁新娘',lang:'韩语',isNew:true,onlineAt:'2026-08-14 10:20',firstDeliverAt:''},
+  {id:'LA002',script:'都市医仙',name:'重生之都市医仙',lang:'英语',isNew:true,onlineAt:'2026-08-14 11:05',firstDeliverAt:''},
+  {id:'LA003',script:'小姨我爱你',name:'小姨我爱你',lang:'中文',isNew:true,onlineAt:'2026-08-15 09:30',firstDeliverAt:''},
+  {id:'LA004',script:'小娇妻马甲',name:'小娇妻马甲藏不住了',lang:'韩语',onlineAt:'2026-07-28 14:00',firstDeliverAt:'2026-07-29 10:12'},
+  {id:'LA005',script:'闪婚老公',name:'闪婚老公是大佬',lang:'韩语',onlineAt:'2026-07-26 16:40',firstDeliverAt:'2026-07-27 09:05'},
+  {id:'LA006',script:'天才萌宝',name:'天才萌宝找上门',lang:'泰语',onlineAt:'2026-07-15 10:00',firstDeliverAt:'2026-07-16 11:30'},
+  {id:'LA007',script:'替身白月光',name:'总裁的替身白月光',lang:'英语',onlineAt:'2026-07-10 09:15',firstDeliverAt:'2026-07-11 08:40'},
+  {id:'LA008',script:'落日余晖',name:'落日余晖下的吻',lang:'英语',onlineAt:'2026-07-22 15:20',firstDeliverAt:'2026-07-23 10:00'},
+  {id:'LA009',script:'国色天香',name:'国色天香',lang:'韩语',onlineAt:'2026-07-05 11:00',firstDeliverAt:'2026-07-06 09:20'},
+  {id:'LA010',script:'逆光而行',name:'逆光而行',lang:'英语',onlineAt:'2026-08-01 13:45',firstDeliverAt:''},
+  {id:'LA011',script:'宠妃升职记',name:'宠妃升职记',lang:'韩语',onlineAt:'2026-07-30 17:10',firstDeliverAt:'2026-07-31 10:45'},
+  {id:'LA012',script:'至尊龙婿',name:'至尊龙婿',lang:'中文',onlineAt:'2026-07-03 08:50',firstDeliverAt:'2026-07-04 09:00'},
+  {id:'LA013',script:'甜妻上门',name:'甜妻上门',lang:'英语',onlineAt:'2026-08-05 14:25',firstDeliverAt:'2026-08-06 09:30'},
+  {id:'LA014',script:'隐婚妻子',name:'大佬的隐婚妻子',lang:'韩语',onlineAt:'2026-07-18 12:00',firstDeliverAt:'2026-07-19 10:10'},
+  {id:'LA015',script:'团宠',name:'重生的我成了团宠',lang:'泰语',onlineAt:'2026-07-12 09:40',firstDeliverAt:'2026-07-13 11:00'},
+  {id:'LA016',script:'前夫',name:'前夫请走开',lang:'英语',onlineAt:'2026-08-08 16:15',firstDeliverAt:''},
+  {id:'LA017',script:'宠妻',name:'将军的宠妻',lang:'中文',onlineAt:'2026-07-08 10:30',firstDeliverAt:'2026-07-09 09:15'},
+  {id:'LA018',script:'医妃天下',name:'医妃天下',lang:'马来语',onlineAt:'2026-07-01 09:00',firstDeliverAt:''},
+  {id:'LA019',script:'迷人娇妻',name:'娇妻太迷人',lang:'韩语',onlineAt:'2026-07-25 13:20',firstDeliverAt:'2026-07-26 10:05'},
+  {id:'LA020',script:'开局一个碗',name:'开局一个碗',lang:'英语',onlineAt:'2026-07-07 15:50',firstDeliverAt:'2026-07-08 09:45'},
+  {id:'LA021',script:'林深时见鹿',name:'林深时见鹿',lang:'中文',onlineAt:'2026-08-11 11:35',firstDeliverAt:'2026-08-12 10:20'},
+  {id:'LA022',script:'重生白月光',name:'白月光她重生归来',lang:'韩语',onlineAt:'2026-07-19 08:25',firstDeliverAt:'2026-07-20 09:50'},
+  {id:'LA023',script:'隐婚总裁',name:'隐婚总裁夜夜求撩',lang:'英语',onlineAt:'2026-08-03 12:40',firstDeliverAt:'2026-08-04 10:30'},
+  {id:'LA024',script:'福气农家',name:'穿越之福气农家',lang:'泰语',onlineAt:'2026-07-09 14:05',firstDeliverAt:''},
+  {id:'LA025',script:'腹黑王爷',name:'腹黑王爷宠上瘾',lang:'中文',onlineAt:'2026-07-16 10:55',firstDeliverAt:'2026-07-17 09:25'},
 ];
 // 从 Meta / TikTok 两个自动化任务系统拉取的自动化任务（外部系统数据，开发期经 API 拉取）
 const META_TASKS=[
@@ -464,10 +476,41 @@ function updateDrPager(total){
   document.getElementById('drPrev').disabled=drPage<=1;
   document.getElementById('drNext').disabled=drPage>=drPages;
 }
+// 短剧名 / 剧本编号：单独（单值模糊匹配）与批量（每行一个值，只认换行）两种输入模式
+const kwMode={drName:'single',drScript:'single'};
+function toggleKwMode(base){
+  const single=document.getElementById(base), multi=document.getElementById(base+'Multi'), btn=document.getElementById(base+'Mode');
+  const toBatch=kwMode[base]==='single';
+  if(toBatch){
+    multi.value=single.value.trim(); // 切换时带过已输内容，避免筛选条件被静默丢掉
+    multi.hidden=false; single.hidden=true;
+    btn.textContent='单独'; btn.title='切换到单独搜索（单值模糊匹配）';
+  }else{
+    single.value=(multi.value.split('\n').find(l=>l.trim())||'').trim();
+    single.hidden=false; multi.hidden=true;
+    btn.textContent='批量'; btn.title='切换到批量搜索（每行一个值）';
+  }
+  kwMode[base]=toBatch?'batch':'single';
+}
+// 取某框当前生效的关键词：单独=整值当一个词；批量=按行切、去空行（换行是唯一分隔符）
+function kwValues(base){
+  if(kwMode[base]==='batch')return document.getElementById(base+'Multi').value.split('\n').map(s=>s.trim().toLowerCase()).filter(Boolean);
+  const v=document.getElementById(base).value.trim().toLowerCase();
+  return v?[v]:[];
+}
+function drSearch(){drPage=1;renderDramaTable();}
 function renderDramaTable(){
   const lang=document.getElementById('drLang').value;
-  const kw=(document.getElementById('drKw').value||'').trim().toLowerCase();
-  const list=DRAMAS.filter(d=>(!lang||d.lang===lang)&&(!kw||(d.id+' '+d.script+' '+d.name).toLowerCase().includes(kw)));
+  const names=kwValues('drName');
+  const scripts=kwValues('drScript');
+  const d1=document.getElementById('drOnline1').value, d2=document.getElementById('drOnline2').value;
+  const list=DRAMAS.filter(d=>{
+    const day=(d.onlineAt||'').slice(0,10); // 取日期部分与 date 控件（YYYY-MM-DD）比较，含首尾
+    return (!lang||d.lang===lang)
+      && (!names.length||names.some(t=>d.name.toLowerCase().includes(t)))
+      && (!scripts.length||scripts.some(t=>d.id.toLowerCase().includes(t)))
+      && (!d1||day>=d1) && (!d2||day<=d2);
+  });
   const total=list.length;
   if(drPage>Math.max(1,Math.ceil(total/drPageSize)))drPage=1;
   const slice=list.slice((drPage-1)*drPageSize,drPage*drPageSize);
@@ -482,6 +525,8 @@ function renderDramaTable(){
       +'<td>'+d.script+'</td>'
       +'<td>'+d.name+'</td>'
       +'<td>'+d.lang+'</td>'
+      +'<td>'+d.onlineAt+'</td>'
+      +'<td>'+(d.firstDeliverAt||'—')+'</td>'
       +'<td>'+(d.isNew?'<span class="tag tag-blue">新上线</span>':'<span class="tag tag-gray">已上线</span>')+'</td></tr>');
   });
   updateDrSelCount();
