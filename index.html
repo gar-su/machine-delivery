@@ -172,6 +172,8 @@
       <button class="mode-btn" id="drScriptMode" title="切换到批量搜索（每行一个值）" onclick="toggleKwMode('drScript')">批量</button>
       <label>上线时间</label>
       <input type="date" class="date-input" id="drOnline1"><span style="color:var(--muted)">至</span><input type="date" class="date-input" id="drOnline2">
+      <label>初次投放时间</label>
+      <input type="date" class="date-input" id="drFirst1"><span style="color:var(--muted)">至</span><input type="date" class="date-input" id="drFirst2">
       <button class="btn-primary" onclick="drSearch()">查询</button>
     </div>
     <div class="batch-form">
@@ -504,12 +506,16 @@ function renderDramaTable(){
   const names=kwValues('drName');
   const scripts=kwValues('drScript');
   const d1=document.getElementById('drOnline1').value, d2=document.getElementById('drOnline2').value;
+  const f1=document.getElementById('drFirst1').value, f2=document.getElementById('drFirst2').value;
   const list=DRAMAS.filter(d=>{
     const day=(d.onlineAt||'').slice(0,10); // 取日期部分与 date 控件（YYYY-MM-DD）比较，含首尾
+    const firstDay=(d.firstDeliverAt||'').slice(0,10); // 未投放过为空串
     return (!lang||d.lang===lang)
       && (!names.length||names.some(t=>d.name.toLowerCase().includes(t)))
       && (!scripts.length||scripts.some(t=>d.id.toLowerCase().includes(t)))
-      && (!d1||day>=d1) && (!d2||day<=d2);
+      && (!d1||day>=d1) && (!d2||day<=d2)
+      // 初次投放时间：设了任一端即要求有值且落在区间内（未投放过的空值不因 `''<=f2` 恒真而漏出）
+      && (!f1&&!f2||(!!firstDay&&(!f1||firstDay>=f1)&&(!f2||firstDay<=f2)));
   });
   const total=list.length;
   if(drPage>Math.max(1,Math.ceil(total/drPageSize)))drPage=1;
