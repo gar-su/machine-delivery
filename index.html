@@ -111,12 +111,23 @@
   .ss-wrap.ss-open .ss-list{display:block}
   .ss-opt{padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ss-opt:hover,.ss-opt.cur{background:var(--blue-bg);color:var(--primary)}
+  .scene-tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+  .scene-tab{padding:8px 16px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;font-size:14px}
+  .scene-tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:500}
+  .role-switch{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .role-switch select,.role-switch button{padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff;color:var(--text)}
+  .role-switch button{cursor:pointer}
 </style>
 </head>
 <body>
 <div class="topbar">
   <div class="logo">机器投放</div>
   <div class="breadcrumb">后台 / <span id="crumb">执行记录</span></div>
+  <div class="role-switch">
+    <label>角色</label>
+    <select id="curRole" onchange="setRole(this.value)"><option value="admin">管理员</option><option value="user">普通用户</option></select>
+    <button onclick="deliverDemoFollowUp()">投递跟投信号（演示）</button>
+  </div>
 </div>
 <div class="outer-tabs">
   <div class="outer-tab active" data-outer="dashboard">运行看板</div>
@@ -206,13 +217,17 @@
 <div class="outer-page" id="outer-tasks" style="display:none">
   <div class="content">
     <div class="card">
+      <div class="scene-tabs" id="taskSceneTabs">
+        <div class="scene-tab active" data-scene="测新" onclick="setScene('测新')">测新</div>
+        <div class="scene-tab" data-scene="跟投" onclick="setScene('跟投')">跟投</div>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h3 style="margin:0">测新默认自动化任务</h3>
+        <h3 style="margin:0" id="taskTitle">测新默认自动化任务</h3>
         <button class="btn primary" onclick="openAddTask()">新增配置</button>
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">已覆盖的语种禁止重复新增</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px" id="taskHint">同一语种可配置多条默认任务，解析时取全部启用中的条目</div>
       <table>
-        <thead><tr><th>语种</th><th>绑定 Meta 自动化任务</th><th>绑定 TikTok 自动化任务</th><th>操作</th></tr></thead>
+        <thead id="taskThead"></thead>
         <tbody id="taskTable"></tbody>
       </table>
     </div>
@@ -223,8 +238,12 @@
 <div class="modal-mask" id="taskMask">
   <div class="modal">
     <h2 id="taskModalTitle">新增测新默认配置</h2>
+    <div class="form-row" id="addDimRow" hidden>
+      <label>目标维度（跟投按「目标维度 × 语种」区分绑定）</label>
+      <select id="addDim" onchange="refreshAddTasks()"></select>
+    </div>
     <div class="form-row">
-      <label>语种（已配置语种不可重复新增）</label>
+      <label id="addLangLabel">语种（已配置语种不可重复新增）</label>
       <select id="addLang"></select>
     </div>
     <div class="form-row">
@@ -321,54 +340,129 @@ const DRAMAS=[
   {id:'LA025',script:'腹黑王爷',name:'腹黑王爷宠上瘾',lang:'中文',onlineAt:'2026-07-16 10:55',firstDeliverAt:'2026-07-17 09:25'},
 ];
 // 从 Meta / TikTok 两个自动化任务系统拉取的自动化任务（外部系统数据，开发期经 API 拉取）
+// mt = 该任务指定了素材类型；素材维度的候选只列带 mt 的任务，其余维度不限
 const META_TASKS=[
-  {id:'meta_kr_test',name:'韩语测新（Meta）'},
+  {id:'meta_kr_test',name:'韩语测新·A 包（Meta）'},
+  {id:'meta_kr_test2',name:'韩语测新·B 包（Meta）'},
   {id:'meta_en_test',name:'英语测新（Meta）'},
   {id:'meta_zh_test',name:'中文测新（Meta）'},
   {id:'meta_th_test',name:'泰语测新（Meta）'},
-  {id:'meta_kr_follow',name:'韩语跟投（Meta）'},
-  {id:'meta_en_follow',name:'英语跟投（Meta）'},
-  {id:'meta_my_follow',name:'马来语跟投（Meta）'},
+  {id:'meta_kr_follow_drama',name:'韩语跟投·短剧·A 包（Meta）'},
+  {id:'meta_kr_follow_drama2',name:'韩语跟投·短剧·B 包（Meta）'},
+  {id:'meta_en_follow_drama',name:'英语跟投·短剧（Meta）'},
+  {id:'meta_en_follow_material',name:'英语跟投·素材·视频（Meta）',mt:'视频'},
 ];
 const TT_TASKS=[
-  {id:'tt_kr_test',name:'韩语测新（TikTok）'},
+  {id:'tt_kr_test',name:'韩语测新·A 包（TikTok）'},
+  {id:'tt_kr_test2',name:'韩语测新·B 包（TikTok）'},
   {id:'tt_en_test',name:'英语测新（TikTok）'},
   {id:'tt_zh_test',name:'中文测新（TikTok）'},
   {id:'tt_th_test',name:'泰语测新（TikTok）'},
-  {id:'tt_kr_follow',name:'韩语跟投（TikTok）'},
-  {id:'tt_en_follow',name:'英语跟投（TikTok）'},
-  {id:'tt_my_follow',name:'马来语跟投（TikTok）'},
+  {id:'tt_kr_follow_drama',name:'韩语跟投·短剧·A 包（TikTok）'},
+  {id:'tt_kr_follow_drama2',name:'韩语跟投·短剧·B 包（TikTok）'},
+  {id:'tt_en_follow_drama',name:'英语跟投·短剧（TikTok）'},
+  {id:'tt_en_follow_material',name:'英语跟投·素材·视频（TikTok）',mt:'视频'},
 ];
-// 测新默认自动化任务（第一期仅测新）：语种 → Meta / TikTok 各绑一条外部自动化任务，按当前操作人维护
+// 默认自动化任务：一条配置 = 键 + 绑定 Meta 任务 + 绑定 TikTok 任务 + 启用状态
+// 键：测新 = 语种；跟投 = 目标维度 × 语种（短剧级 / 广告计划级 / 素材级的跟投任务互不通用）
+// 同一个键可配多条，条数不限——解析时取该键下「全部启用中」的条目，把目标绑进它们的全部任务
 const LANGS=['中文','英语','韩语','泰语','马来语'];
+const DIMS=['短剧','广告计划','素材'];
+const keyTest=lang=>'测新-'+lang;
+const keyFollow=(dim,lang)=>'跟投-'+dim+'-'+lang;
 const bindings={
-  '测新-韩语':{meta:'meta_kr_test',tt:'tt_kr_test'},
-  '测新-英语':{meta:'meta_en_test',tt:'tt_en_test'},
+  '测新-韩语':[
+    {meta:'meta_kr_test',tt:'tt_kr_test',enabled:true},
+    {meta:'meta_kr_test2',tt:'tt_kr_test2',enabled:true},
+  ],
+  '测新-英语':[{meta:'meta_en_test',tt:'tt_en_test',enabled:true}],
+  '跟投-短剧-韩语':[
+    {meta:'meta_kr_follow_drama',tt:'tt_kr_follow_drama',enabled:true},
+    {meta:'meta_kr_follow_drama2',tt:'tt_kr_follow_drama2',enabled:false},
+  ],
+  '跟投-短剧-英语':[{meta:'meta_en_follow_drama',tt:'tt_en_follow_drama',enabled:true}],
+  '跟投-素材-英语':[{meta:'meta_en_follow_material',tt:'tt_en_follow_material',enabled:true}],
 };
-let editingLang=''; // 编辑态：默认自动化任务弹窗当前编辑的语种（空=新增）
+const entries=key=>bindings[key]||[]; // 该键下的全部条目（含停用）
+const liveEntries=key=>entries(key).filter(e=>e.enabled); // 解析只用启用中的条目
+// 把条目集合的任务拼成执行记录展示串：Meta 侧 / TikTok 侧，各自可多条
+const boundTaskId=list=>{
+  const m=list.map(e=>e.meta).filter(Boolean), t=list.map(e=>e.tt).filter(Boolean);
+  return (m.length?m.join('、'):'—')+' / '+(t.length?t.join('、'):'—');
+};
+// 行参数归一：测新 (语种, 序号)，跟投 (目标维度, 语种, 序号)
+function entryAt(a,b,c){
+  const isFollow=curScene==='跟投';
+  const key=isFollow?keyFollow(a,b):keyTest(a);
+  return {key:key,idx:isFollow?c:b,e:entries(key)[isFollow?c:b]};
+}
+let curScene='测新'; // 默认自动化任务页当前场景
+let CUR_ROLE='admin'; // 后台当前角色（开发期从登录态取）：跟投配置仅管理员可见可改
+let editingLang='', editingDim='', editingIndex=-1; // 编辑态：弹窗当前编辑的语种 / 目标维度 / 条目序号（-1=新增）
 function taskList(platform){return platform==='meta'?META_TASKS:TT_TASKS;}
 function nameById(platform,id){
   const t=taskList(platform).find(x=>x.id===id);
   return t?t.name:id;
 }
-// 执行记录：编排动作留痕（测新/跟投），只读；run 取自动化任务运行状态（无任务时展示跳过原因）
+// 执行记录：编排动作留痕（测新/跟投），只读；run 取自动化任务运行状态（未绑定成功时展示跳过原因）
 const RECORDS=[
-  {id:'sg_20260814_1432_01',type:'跟投',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_follow / tt_kr_follow',user:'系统',run:'启动',time:'2026-08-14 14:32'},
-  {id:'sg_20260814_1430_07',type:'跟投',dim:'素材',target:'003_Shuer_QT_EN',taskId:'meta_en_follow / tt_en_follow',user:'系统',run:'启动',time:'2026-08-14 14:30'},
-  {id:'sg_20260814_1415_03',type:'跟投',dim:'广告计划',target:'cp_8891',taskId:'—',user:'系统',run:'无匹配自动化任务',time:'2026-08-14 14:15'},
   {id:'sg_20260814_1358_02',type:'测新',dim:'短剧',target:'LA002 重生之都市医仙',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-14 13:58'},
   {id:'sg_20260814_1340_09',type:'测新',dim:'短剧',target:'LA010 逆光而行',taskId:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-14 13:40'},
 ];
+// ---- 跟投：FOLLOW_UP 信号 → 按 shortplay_id 反查短剧库取语种 → 按「目标维度 × 语种」解析「系统」版默认绑定 → 绑定 Meta / TikTok 并写执行记录 ----
+// 全自动，无人工确认、无排期；异常（反查失败 / 该「维度 × 语种」未配置）跳过并在运行列以文本呈现
+const DIM_NAME={product:'短剧',campaign:'广告计划',material:'素材'};
+// 样例信号：上游 smart_ad_put 产出（跟投决策统一由其给出），原型启动时回放
+const FOLLOW_UP_SAMPLES=[
+  {signal_id:'sg_20260814_1402_05',target_dimension:'product',target_id:'LA900',shortplay_id:'LA900',receivedAt:'2026-08-14 14:02'},
+  {signal_id:'sg_20260814_1415_03',target_dimension:'campaign',target_id:'cp_8891',shortplay_id:'LA018',receivedAt:'2026-08-14 14:15'},
+  {signal_id:'sg_20260814_1430_07',target_dimension:'material',target_id:'003_Shuer_QT_EN',shortplay_id:'LA007',receivedAt:'2026-08-14 14:30'},
+  {signal_id:'sg_20260814_1432_01',target_dimension:'product',target_id:'LA001',shortplay_id:'LA001',receivedAt:'2026-08-14 14:32'},
+];
+// 演示：点「投递跟投信号」依次投递，模拟上游实时送达（真实环境下由 smart_ad_put 主动送达）
+const DEMO_FOLLOW_UPS=[
+  {signal_id:'sg_demo_01',target_dimension:'product',target_id:'LA005',shortplay_id:'LA005'},
+  {signal_id:'sg_demo_02',target_dimension:'material',target_id:'007_Night_QT_KR',shortplay_id:'LA011'},
+  {signal_id:'sg_demo_03',target_dimension:'campaign',target_id:'cp_9021',shortplay_id:'LA003'},
+];
+function nowStr(){
+  const p=n=>String(n).padStart(2,'0'), t=new Date();
+  return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate())+' '+p(t.getHours())+':'+p(t.getMinutes());
+}
+function receiveFollowUpSignal(sig,receivedAt){
+  if(RECORDS.some(r=>r.id===sig.signal_id))return; // 幂等：同 signal_id 重复投递不重复绑定
+  const d=DRAMAS.find(x=>x.id===sig.shortplay_id); // 语种一律由 shortplay_id 反查短剧库取得
+  const dim=DIM_NAME[sig.target_dimension]||''; // 目标维度直接取信号字段 target_dimension
+  const live=(d&&dim)?liveEntries(keyFollow(dim,d.lang)):[]; // 取该组合下全部启用中的条目
+  let run='跳过·数据异常', taskId='—'; // 目标短剧不在短剧库 → 数据异常
+  if(d){
+    if(live.length){run='启动';taskId=boundTaskId(live);}
+    else run='跳过·无默认自动化任务'; // 该「目标维度 × 语种」下没有启用中的默认任务
+  }
+  RECORDS.unshift({
+    id:sig.signal_id,type:'跟投',dim:DIM_NAME[sig.target_dimension]||'短剧',
+    target:sig.target_dimension==='product'&&d?d.id+' '+d.name:sig.target_id,
+    taskId:taskId,user:'系统',run:run,time:receivedAt||nowStr(),
+  });
+  renderRecords();
+}
+let demoIdx=0;
+function deliverDemoFollowUp(){
+  if(demoIdx>=DEMO_FOLLOW_UPS.length)return alert('演示信号已全部投递，刷新页面可重置');
+  receiveFollowUpSignal(DEMO_FOLLOW_UPS[demoIdx++]);
+}
 
 // ---- 搜索下拉组件（绑定自动化任务）----
-function ssHTML(platform, selId, role, key){
+// mtOnly=true 时只列「指定了素材类型」的任务（素材维度专用），其余维度列全量
+function ssHTML(platform, selId, mtOnly, role, key){
   const selName=selId?nameById(platform,selId):'';
+  const pool=mtOnly?taskList(platform).filter(t=>t.mt):taskList(platform);
   const attrs=(key?' data-key="'+key+'"':'')+(role?' data-role="'+role+'"':'');
   return '<div class="ss-wrap" data-plat="'+platform+'" data-sel="'+(selId||'')+'"'+attrs+'>'
     +'<input class="ss-input" placeholder="搜索 / 选择 '+(platform==='meta'?'Meta':'TikTok')+' 任务…" autocomplete="off" value="'+selName+'">'
     +'<div class="ss-list">'
       +'<div class="ss-opt'+(selId?'':' cur')+'" data-val="" data-search="未配置">未配置</div>'
-      +taskList(platform).map(t=>'<div class="ss-opt'+(t.id===selId?' cur':'')+'" data-val="'+t.id+'" data-search="'+t.id+' '+t.name+'">'+t.name+'</div>').join('')
+      +pool.map(t=>'<div class="ss-opt'+(t.id===selId?' cur':'')+'" data-val="'+t.id+'" data-search="'+t.id+' '+t.name+'">'+t.name+'</div>').join('')
     +'</div></div>';
 }
 // 事件委托：搜索 / 展开 / 选择（对页面内所有 .ss-wrap 生效）
@@ -404,62 +498,126 @@ document.addEventListener('mousedown',e=>{
   if(wrap.dataset.key)setBind(wrap.dataset.key,wrap.dataset.plat,val);
 });
 
-// ---- 默认自动化任务：正交全表 + 内联搜索下拉（无需弹窗）----
+// ---- 默认自动化任务：按场景（测新 / 跟投）维护语种 → 任务的绑定 ----
 function setBind(key,platform,val){
   const b=bindings[key]||{meta:'',tt:''};
   b[platform]=val;
   bindings[key]=b;
 }
+// 场景切换：测新按操作人维护（键=语种），跟投归「系统」全局一版（键=目标维度 × 语种）
+function setScene(scene){
+  curScene=scene;
+  document.querySelectorAll('#taskSceneTabs .scene-tab').forEach(t=>t.classList.toggle('active',t.dataset.scene===scene));
+  document.getElementById('taskTitle').textContent=scene+'默认自动化任务';
+  document.getElementById('taskHint').textContent=scene==='跟投'
+    ?'系统全局一版，仅管理员可维护；按「目标维度 × 语种」组织，同一组合可配多条，解析时取全部启用中的条目'
+    :'同一语种可配置多条默认任务，解析时取全部启用中的条目';
+  rerenderTaskTable();
+}
+// 角色切换：跟投配置仅管理员可见可改（开发期从登录态取，此处供评审切换查看）
+function setRole(role){
+  CUR_ROLE=role;
+  document.querySelector('#taskSceneTabs .scene-tab[data-scene="跟投"]').hidden=role!=='admin';
+  if(role!=='admin'&&curScene==='跟投'){setScene('测新');return;} // setScene 内已重渲染
+  rerenderTaskTable();
+}
 function rerenderTaskTable(){
+  const isFollow=curScene==='跟投';
+  document.getElementById('taskThead').innerHTML='<tr>'+(isFollow?'<th>目标维度</th>':'')
+    +'<th>语种</th><th>绑定 Meta 自动化任务</th><th>绑定 TikTok 自动化任务</th><th>状态</th><th>操作</th></tr>';
   const tb=document.getElementById('taskTable');
   tb.innerHTML='';
-  for(const lang of LANGS){
-    const b=bindings['测新-'+lang];
-    if(!b)continue; // 仅展示当前操作人已配置的条目；列表只读，改绑=删除后重新新增
-    tb.insertAdjacentHTML('beforeend',
-      '<tr><td>'+lang+'</td>'
-      +'<td>'+(nameById('meta',b.meta||'')||'未配置')+'</td>'
-      +'<td>'+(nameById('tt',b.tt||'')||'未配置')+'</td>'
-      +'<td><button class="btn" onclick="editTask(\''+lang+'\')">编辑</button> <button class="btn danger" onclick="removeTask(\''+lang+'\')">删除</button></td></tr>');
+  // 跟投按「目标维度 × 语种」铺键，测新只有短剧一个维度、按语种铺键；同一键下的多条依次成行
+  const keys=isFollow
+    ?DIMS.flatMap(dim=>LANGS.map(lang=>[dim,lang,keyFollow(dim,lang)]))
+    :LANGS.map(lang=>['',lang,keyTest(lang)]);
+  for(const [dim,lang,key] of keys){
+    entries(key).forEach((e,i)=>{
+      const arg=isFollow?('\''+dim+'\',\''+lang+'\','+i):('\''+lang+'\','+i);
+      tb.insertAdjacentHTML('beforeend',
+        '<tr>'+(isFollow?'<td>'+dim+'</td>':'')
+        +'<td>'+lang+'</td>'
+        +'<td>'+(nameById('meta',e.meta||'')||'未配置')+'</td>'
+        +'<td>'+(nameById('tt',e.tt||'')||'未配置')+'</td>'
+        +'<td>'+(e.enabled?'<span class="tag tag-green">启用</span>':'<span class="tag tag-gray">停用</span>')+'</td>'
+        +'<td><button class="btn" onclick="editTask('+arg+')">编辑</button> '
+        +'<button class="btn" onclick="toggleTask('+arg+')">'+(e.enabled?'停用':'启用')+'</button> '
+        +'<button class="btn danger" onclick="removeTask('+arg+')">删除</button></td></tr>');
+    });
   }
 }
+// 目标维度切到「素材」时刷新任务候选：素材维度只列指定了素材类型的任务
+function refreshAddTasks(){
+  const mtOnly=curScene==='跟投'&&document.getElementById('addDim').value==='素材';
+  document.getElementById('addMeta').innerHTML=ssHTML('meta','',mtOnly);
+  document.getElementById('addTT').innerHTML=ssHTML('tt','',mtOnly);
+}
 function openAddTask(){
-  editingLang='';
-  document.getElementById('taskModalTitle').textContent='新增测新默认配置';
+  editingLang=''; editingDim=''; editingIndex=-1;
+  const isFollow=curScene==='跟投';
+  document.getElementById('taskModalTitle').textContent='新增'+curScene+'默认配置';
+  document.getElementById('addDimRow').hidden=!isFollow;
+  document.getElementById('addDim').innerHTML=DIMS.map(d=>'<option>'+d+'</option>').join('');
+  document.getElementById('addLangLabel').textContent=isFollow
+    ?'语种（与目标维度组成组合；同一组合可配多条）':'语种（同一语种可配多条）';
   document.getElementById('addLang').innerHTML='<option value="">请选择语种</option>'+LANGS.map(l=>'<option>'+l+'</option>').join('');
-  document.getElementById('addMeta').innerHTML=ssHTML('meta');
-  document.getElementById('addTT').innerHTML=ssHTML('tt');
+  refreshAddTasks();
   document.getElementById('taskMask').classList.add('show');
 }
-function editTask(lang){
-  const b=bindings['测新-'+lang]||{meta:'',tt:''};
-  editingLang=lang;
-  document.getElementById('taskModalTitle').textContent='编辑测新默认配置';
-  document.getElementById('addLang').innerHTML='<option>'+lang+'</option>'; // 编辑仅改任务绑定，语种固定
-  document.getElementById('addMeta').innerHTML=ssHTML('meta',b.meta);
-  document.getElementById('addTT').innerHTML=ssHTML('tt',b.tt);
+function editTask(a,b,c){
+  const {idx,e}=entryAt(a,b,c);
+  if(!e)return;
+  const isFollow=curScene==='跟投';
+  editingLang=isFollow?b:a; editingDim=isFollow?a:''; editingIndex=idx;
+  document.getElementById('taskModalTitle').textContent='编辑'+curScene+'默认配置';
+  document.getElementById('addDimRow').hidden=!isFollow;
+  document.getElementById('addDim').innerHTML=isFollow?'<option>'+a+'</option>':''; // 编辑仅改任务绑定，维度与语种固定
+  document.getElementById('addLangLabel').textContent=isFollow?'语种（固定）':'语种';
+  document.getElementById('addLang').innerHTML='<option>'+(isFollow?b:a)+'</option>';
+  const mtOnly=isFollow&&a==='素材';
+  document.getElementById('addMeta').innerHTML=ssHTML('meta',e.meta,mtOnly);
+  document.getElementById('addTT').innerHTML=ssHTML('tt',e.tt,mtOnly);
   document.getElementById('taskMask').classList.add('show');
 }
 function closeAddTask(){
-  editingLang='';
+  editingLang=''; editingDim=''; editingIndex=-1;
   document.getElementById('taskMask').classList.remove('show');
 }
 function confirmAddTask(){
-  const lang=editingLang||document.getElementById('addLang').value;
+  const isFollow=curScene==='跟投';
+  const editing=editingIndex>=0;
+  const lang=editing?editingLang:document.getElementById('addLang').value;
+  const dim=isFollow?(editing?editingDim:document.getElementById('addDim').value):'';
   if(!lang){alert('请选择语种');return;}
-  if(!editingLang&&bindings['测新-'+lang]){alert('该语种已配置测新默认任务，禁止重复新增');return;}
+  if(isFollow&&!dim){alert('请选择目标维度');return;}
   const meta=document.querySelector('#addMeta .ss-wrap').dataset.sel||'';
   const tt=document.querySelector('#addTT .ss-wrap').dataset.sel||'';
   if(!meta&&!tt){alert('请至少为一个平台绑定自动化任务');return;}
-  bindings['测新-'+lang]={meta:meta,tt:tt};
-  editingLang='';
+  const key=isFollow?keyFollow(dim,lang):keyTest(lang);
+  // 同一组合可配多条，不再限制「已覆盖禁止重复新增」
+  if(editing)Object.assign(entries(key)[editingIndex],{meta:meta,tt:tt});
+  else (bindings[key]=bindings[key]||[]).push({meta:meta,tt:tt,enabled:true});
+  editingLang=''; editingDim=''; editingIndex=-1;
   document.getElementById('taskMask').classList.remove('show');
   rerenderTaskTable();
 }
-function removeTask(lang){
-  const key='测新-'+lang;
-  if(!confirm('删除「'+lang+'」测新默认配置？删除后该语种测新将跳过并告警。'))return;
-  delete bindings[key];
+// 启用 / 停用：停用的条目不参与解析
+function toggleTask(a,b,c){
+  const {e}=entryAt(a,b,c);
+  if(!e)return;
+  e.enabled=!e.enabled;
+  rerenderTaskTable();
+}
+function removeTask(a,b,c){
+  const {key,idx,e}=entryAt(a,b,c);
+  if(!e)return;
+  const isFollow=curScene==='跟投';
+  const label=isFollow?a+' × '+b:a;
+  const restEnabled=entries(key).filter((x,i)=>i!==idx&&x.enabled).length;
+  const warn=e.enabled&&!restEnabled?'删除后「'+label+'」将没有启用中的默认任务，会跳过并告警。':'';
+  if(!confirm('删除「'+label+'」的这条'+curScene+'默认配置？'+warn))return;
+  bindings[key].splice(idx,1);
+  if(!bindings[key].length)delete bindings[key]; // 最后一条也删掉时，整个键移除
   rerenderTaskTable();
 }
 
@@ -558,13 +716,19 @@ function batchInitiateTest(){
 // ---- 测新确认弹窗：批量确认（默认配置列表 + 统一排期），确认后绑定并进入执行记录 ----
 let batchSel=[], recSeq=1;
 function taskGridHTML(){
-  const scenes=['测新'], langs=LANGS;
   let html='<table><thead><tr><th>场景</th><th>语种</th><th>绑定 Meta 任务</th><th>绑定 TikTok 任务</th></tr></thead><tbody>';
-  for(const scene of scenes) for(const lang of langs){
-    const b=bindings[scene+'-'+lang]||{meta:'',tt:''};
-    html+='<tr><td>'+scene+'</td><td>'+lang+'</td>'
-      +'<td>'+(b.meta?nameById('meta',b.meta):'<span class="cell-muted">未配置</span>')+'</td>'
-      +'<td>'+(b.tt?nameById('tt',b.tt):'<span class="cell-muted">未配置</span>')+'</td></tr>';
+  for(const lang of LANGS){
+    const live=liveEntries(keyTest(lang)); // 只列启用中的条目；同语种多条时逐条成行
+    if(!live.length){
+      html+='<tr><td>测新</td><td>'+lang+'</td>'
+        +'<td><span class="cell-muted">未配置</span></td><td><span class="cell-muted">未配置</span></td></tr>';
+      continue;
+    }
+    live.forEach(e=>{
+      html+='<tr><td>测新</td><td>'+lang+'</td>'
+        +'<td>'+(e.meta?nameById('meta',e.meta):'<span class="cell-muted">未配置</span>')+'</td>'
+        +'<td>'+(e.tt?nameById('tt',e.tt):'<span class="cell-muted">未配置</span>')+'</td></tr>';
+    });
   }
   return html+'</tbody></table>';
 }
@@ -574,21 +738,21 @@ function confirmBatch(){
   const schedule=(document.getElementById('detailSchedule').value||'').replace('T',' ')||'立即';
   let skip=0;
   batchSel.forEach(d=>{
-    if(!bindings['测新-'+d.lang]){skip++;return;} // 该语种未配置默认自动化任务：跳过并告警
+    const live=liveEntries(keyTest(d.lang));
+    if(!live.length){skip++;return;} // 该语种无启用中的默认自动化任务：跳过并告警
     dramaTest[d.id]='passed';
-    prependRecord(d,schedule); // 开发期：分别调用 Meta / TikTok 自动化任务系统绑定短剧
+    prependRecord(d,schedule,live); // 开发期：分别调用 Meta / TikTok 自动化任务系统绑定短剧
   });
   batchSel=[];
   document.getElementById('detailMask').classList.remove('show');
-  if(skip)alert(skip+' 部短剧该语种未配置默认自动化任务，已跳过');
+  if(skip)alert(skip+' 部短剧该语种没有启用中的默认自动化任务，已跳过');
   switchToRecords();
 }
-function prependRecord(d,schedule){
-  const b=bindings['测新-'+d.lang];
+function prependRecord(d,schedule,live){
   RECORDS.unshift({
     id:'sg_manual_'+String(recSeq++).padStart(3,'0'),
     type:'测新',dim:'短剧',target:d.id+' '+d.name,
-    taskId:b.meta+' / '+b.tt,user:CUR_USER,run:'启动',time:schedule,
+    taskId:boundTaskId(live),user:CUR_USER,run:'启动',time:schedule,
   });
   renderRecords();
 }
@@ -631,7 +795,8 @@ function switchToRecords(){
 
 // ---- 初始化 ----
 renderDramaTable();
-rerenderTaskTable();
+setRole(CUR_ROLE); // 角色决定跟投 tab 可见性，并渲染默认自动化任务表
+FOLLOW_UP_SAMPLES.forEach(s=>receiveFollowUpSignal(s,s.receivedAt)); // 跟投样例走真实信号处理路径
 renderRecords();
 </script>
 </body>
