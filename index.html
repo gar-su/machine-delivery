@@ -155,13 +155,25 @@
         <select id="recUser"><option value="">全部</option><option>系统</option><option>运营A</option><option>运营B</option><option>运营C</option></select>
         <label>时间范围</label>
         <input type="date" class="date-input" id="recDate1"><span style="color:var(--muted)">至</span><input type="date" class="date-input" id="recDate2">
-        <button class="btn-primary" onclick="renderRecords()">查询</button>
+        <button class="btn-primary" onclick="recSearch()">查询</button>
         <button class="reset" onclick="resetRecords()">重置</button>
       </div>
       <table>
         <thead><tr><th>信号ID</th><th>类型</th><th>维度</th><th>目标</th><th>自动化任务ID</th><th>操作人</th><th>运行</th><th>时间</th></tr></thead>
         <tbody id="recTableBody"></tbody>
       </table>
+      <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px">
+        <span id="recPagerInfo" style="color:var(--muted);font-size:13px"></span>
+        <button class="btn" id="recPrev" onclick="recPrevPage()">上一页</button>
+        <button class="btn" id="recNext" onclick="recNextPage()">下一页</button>
+        <label style="font-size:13px;color:var(--muted)">每页</label>
+        <select id="recPageSize" onchange="setRecPageSize(this.value)">
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+        </select>
+        <span style="font-size:13px;color:var(--muted)">条</span>
+      </div>
     </div>
 
   </div>
@@ -229,7 +241,7 @@
       <input id="sigKw" class="kw-input" placeholder="短剧名 / 剧本编号 / 计划ID / 素材ID">
       <label>接收时间</label>
       <input type="date" class="date-input" id="sigDate1"><span style="color:var(--muted)">至</span><input type="date" class="date-input" id="sigDate2">
-      <button class="btn-primary" onclick="renderSignals()">查询</button>
+      <button class="btn-primary" onclick="sigSearch()">查询</button>
       <button class="reset" onclick="resetSignals()">重置</button>
     </div>
     <div class="batch-form">
@@ -243,6 +255,18 @@
       <thead><tr><th><input type="checkbox" class="sig-checkbox-all"></th><th>接收时间</th><th>信号ID</th><th>维度</th><th>目标ID</th><th>短剧名</th><th>语言 / 剧本</th><th>置信度</th><th>原因</th><th>状态</th><th>详情</th></tr></thead>
       <tbody id="sigTable"></tbody>
     </table>
+    <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px">
+      <span id="sigPagerInfo" style="color:var(--muted);font-size:13px"></span>
+      <button class="btn" id="sigPrev" onclick="sigPrevPage()">上一页</button>
+      <button class="btn" id="sigNext" onclick="sigNextPage()">下一页</button>
+      <label style="font-size:13px;color:var(--muted)">每页</label>
+      <select id="sigPageSize" onchange="setSigPageSize(this.value)">
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+      </select>
+      <span style="font-size:13px;color:var(--muted)">条</span>
+    </div>
   </div>
 </div>
 
@@ -475,9 +499,20 @@ function nameById(platform,id){
 }
 // 执行记录：编排动作留痕（测新/跟投），只读；run 取自动化任务运行状态（未绑定成功时展示跳过原因）
 const RECORDS=[
+  {id:'20260906153042_003_Shuer_QT_EN',type:'跟投',dim:'素材',target:'003_Shuer_QT_EN',taskId:'meta_en_follow_material / tt_en_follow_material',user:'运营C',run:'启动',time:'2026-09-06 15:30'},
+  {id:'20260906111805_2041889900112233445',type:'跟投',dim:'短剧',target:'LA013 甜妻上门',taskId:'meta_en_follow_drama / tt_en_follow_drama',user:'运营A',run:'暂停',time:'2026-09-06 11:18'},
+  {id:'20260906104218_2041122334455667788',type:'跟投',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_follow_drama / tt_kr_follow_drama',user:'运营A',run:'启动',time:'2026-09-06 10:42'},
   {id:'sg_20260814_1358_02',type:'测新',dim:'短剧',target:'LA002 重生之都市医仙',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-14 13:58'},
   {id:'sg_20260814_1340_09',type:'测新',dim:'短剧',target:'LA010 逆光而行',taskId:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-14 13:40'},
+  {id:'sg_20260814_1122_04',type:'测新',dim:'短剧',target:'LA013 甜妻上门',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-14 11:22'},
+  {id:'sg_20260814_1015_01',type:'测新',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',user:'运营C',run:'启动',time:'2026-08-14 10:15'},
+  {id:'sg_20260813_1640_07',type:'测新',dim:'短剧',target:'LA016 前夫请走开',taskId:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-13 16:40'},
+  {id:'sg_20260813_1528_03',type:'测新',dim:'短剧',target:'LA008 落日余晖下的吻',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-13 15:28'},
+  {id:'sg_20260812_1745_11',type:'测新',dim:'短剧',target:'LA021 林深时见鹿',taskId:'—',user:'运营C',run:'跳过·无默认自动化任务',time:'2026-08-12 17:45'},
+  {id:'sg_20260812_1420_05',type:'测新',dim:'短剧',target:'LA011 宠妃升职记',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',user:'运营A',run:'启动',time:'2026-08-12 14:20'},
+  {id:'sg_20260811_1630_08',type:'测新',dim:'短剧',target:'LA023 隐婚总裁夜夜求撩',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-11 16:30'},
 ];
+let recPage=1, recPageSize=10, recPages=1;
 // ---- 跟投：FOLLOW_UP 信号到达 → 语种取 signal.language_code（经对照表）→ 按「目标维度 × 语种」取该组合下全部启用条目 → 绑定 Meta / TikTok 并写执行记录与信号列表 ----
 // 人工批量确认：信号到达只入列表待确认，勾选后批量确认才绑定；无启用条目的组合确认时跳过并提示，信号保持待确认
 const DIM_NAME={product:'短剧',campaign:'广告计划',material:'素材'};
@@ -488,8 +523,16 @@ const toLocalLang=code=>LANG_ALIAS[code]||(LANGS.includes(code)?code:'');
 const dramaByScript=no=>DRAMAS.find(d=>d.id===no);
 // 「跟投信号」页：收到的信号本体 + 状态（一份信号一行，不因绑定失败而不记录）
 const SIGNALS=[];
+let sigPage=1, sigPageSize=10, sigPages=1;
+const sigSel=new Set(); // 跨页保留勾选：翻页重渲染不会丢掉已选信号
 // 样例信号：上游 smart_ad_put 的实际产出形态（BuildSignal），按到达顺序回放（列表最新在最上）
 const FOLLOW_UP_SAMPLES=[
+  {signal_id:'20260908154211_2043880011223344556',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2043880011223344556',
+   language_code:'韩语',script_no:'LA009',shortplay_name:'The Empress of All Lands',
+   reason:'稳定期: ROI=88.1% > 40%，趋势平稳',confidence:0.82,receivedAt:'2026-09-08 15:42'},
+  {signal_id:'20260908172033_campaign_071',signal_type:'FOLLOW_UP',target_dimension:'campaign',target_id:'campaign_071_mno116',
+   language_code:'英语',script_no:'LA013',shortplay_name:'Sweet Wife Knocks',
+   reason:'成长期 Campaign: ROI>52% 持续上升',confidence:0.79,receivedAt:'2026-09-08 17:20'},
   {signal_id:'20260909091157_2046485173620441090',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2046485173620441090',
    language_code:'印尼语',script_no:'LA045',shortplay_name:'Watch Out! She\'s the Daughter of Zeus',
    reason:'成长期: ROI>95.9% 且趋势上升98%',confidence:0.87,receivedAt:'2026-09-09 09:11'},
@@ -505,6 +548,21 @@ const FOLLOW_UP_SAMPLES=[
   {signal_id:'20260909112630_2041056509957242881',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2041056509957242881',
    language_code:'韩语',script_no:'LA001',shortplay_name:'The Substitute Wife',
    reason:'稳定期: ROI=95.4% > 40%，趋势平稳',confidence:0.86,receivedAt:'2026-09-09 11:26'},
+  {signal_id:'20260909131548_2042200488915566011',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2042200488915566011',
+   language_code:'英语',script_no:'LA020',shortplay_name:'One Bowl to Start',
+   reason:'稳定期: ROI=61.2% > 40%，趋势平稳',confidence:0.80,receivedAt:'2026-09-09 13:15'},
+  {signal_id:'20260909140322_2042776611234455099',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2042776611234455099',
+   language_code:'泰语',script_no:'LA015',shortplay_name:'Reborn as the Family Pet',
+   reason:'成长期: ROI>78% 且趋势上升22%',confidence:0.75,receivedAt:'2026-09-09 14:03'},
+  {signal_id:'20260909154706_009_Lihua_QT_KR',signal_type:'FOLLOW_UP',target_dimension:'material',target_id:'009_Lihua_QT_KR',
+   language_code:'韩语',script_no:'LA019',shortplay_name:'Too Charming a Wife',
+   reason:'成长期: ROI>112% 且趋势上升29%',confidence:0.84,receivedAt:'2026-09-09 15:47'},
+  {signal_id:'20260909163041_campaign_133',signal_type:'FOLLOW_UP',target_dimension:'campaign',target_id:'campaign_133_mno044',
+   language_code:'英语',script_no:'LA023',shortplay_name:'The Secret Husband',
+   reason:'持续盈利 Campaign: ROI>44% 已持续 6 天',confidence:0.82,receivedAt:'2026-09-09 16:30'},
+  {signal_id:'20260910090512_2045112233445566778',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2045112233445566778',
+   language_code:'中文',script_no:'LA003',shortplay_name:'Auntie, I Love You',
+   reason:'持续盈利短剧: ROI>40% 已持续 5 天',confidence:0.78,receivedAt:'2026-09-10 09:05'},
 ];
 // 演示：点「投递跟投信号」依次投递，模拟上游实时送达（真实环境下由 smart_ad_put 主动送达）
 const DEMO_FOLLOW_UPS=[
@@ -527,6 +585,7 @@ function receiveFollowUpSignal(sig,receivedAt){
   // 信号到达只入列表待确认，不自动绑定——绑定由用户「批量确认」触发
   SIGNALS.unshift({...sig,dim:DIM_NAME[sig.target_dimension]||'—',receivedAt:receivedAt||nowStr(),
     drama:dramaByScript(sig.script_no),confirmed:false});
+  sigPage=1; // 新信号插在最前，停在别的页会看不见——统一回到第 1 页
   renderSignals();
 }
 function showSigDetail(id){
@@ -548,8 +607,10 @@ function sigLiveEntries(s){
 }
 const sigName=s=>s.drama?s.drama.id+' '+s.drama.name:(s.shortplay_name||s.target_id);
 function updateSigSelCount(){
-  document.getElementById('sigSelCount').textContent=[...document.querySelectorAll('#sigTable .sig-checkbox')].filter(c=>c.checked).length;
+  document.getElementById('sigSelCount').textContent=sigSel.size;
 }
+// 勾选状态记在 sigSel（按 signal_id），分页重渲染时据此回填——保证跨页勾选不丢
+function markSigSel(id,on){if(on)sigSel.add(id);else sigSel.delete(id);}
 function renderSignals(){
   const dim=document.getElementById('sigDim').value;
   const lang=document.getElementById('sigLang').value;
@@ -561,9 +622,12 @@ function renderSignals(){
     &&(!st||(st==='待确认'?!s.confirmed:s.confirmed))
     &&(!kw||((s.shortplay_name||'')+' '+s.script_no+' '+s.target_id+' '+(s.drama?s.drama.name:'')).toLowerCase().includes(kw))
     &&(!d1||s.receivedAt.slice(0,10)>=d1)&&(!d2||s.receivedAt.slice(0,10)<=d2));
-  document.getElementById('sigTable').innerHTML=list.map(s=>
+  const total=list.length;
+  if(sigPage>Math.max(1,Math.ceil(total/sigPageSize)))sigPage=1;
+  const slice=list.slice((sigPage-1)*sigPageSize,sigPage*sigPageSize);
+  document.getElementById('sigTable').innerHTML=slice.map(s=>
     '<tr data-sig="'+s.signal_id+'">'
-    +'<td><input type="checkbox" class="sig-checkbox" data-id="'+s.signal_id+'"'+(s.confirmed?' disabled title="已绑定"':'')+'></td>'
+    +'<td><input type="checkbox" class="sig-checkbox" data-id="'+s.signal_id+'"'+(s.confirmed?' disabled title="已绑定"':(sigSel.has(s.signal_id)?' checked':''))+'></td>'
     +'<td>'+s.receivedAt+'</td>'
     +'<td>'+s.signal_id+'</td>'
     +'<td>'+s.dim+'</td>'
@@ -575,24 +639,42 @@ function renderSignals(){
     +'<td>'+(s.confirmed?'<span class="tag tag-green">已绑定</span>':'<span class="tag tag-amber">待确认</span>')+'</td>'
     +'<td><button class="btn" onclick="showSigDetail(\''+s.signal_id+'\')">查看</button></td></tr>').join('');
   updateSigSelCount();
+  updateSigPager(total);
+}
+function sigSearch(){sigPage=1;renderSignals();}
+function sigPrevPage(){if(sigPage>1){sigPage--;renderSignals();}}
+function sigNextPage(){if(sigPage<sigPages){sigPage++;renderSignals();}}
+function setSigPageSize(v){sigPageSize=+v;sigPage=1;renderSignals();}
+function updateSigPager(total){
+  sigPages=Math.max(1,Math.ceil(total/sigPageSize));
+  document.getElementById('sigPagerInfo').textContent='共 '+total+' 条 · 第 '+sigPage+'/'+sigPages+' 页';
+  document.getElementById('sigPrev').disabled=sigPage<=1;
+  document.getElementById('sigNext').disabled=sigPage>=sigPages;
 }
 document.querySelector('.sig-checkbox-all').addEventListener('change',e=>{
-  [...document.querySelectorAll('#sigTable .sig-checkbox')].forEach(c=>{c.checked=e.target.checked&&!c.disabled;});
+  [...document.querySelectorAll('#sigTable .sig-checkbox')].forEach(c=>{
+    if(c.disabled)return; // 已绑定的不可勾，全选自动跳过
+    c.checked=e.target.checked;
+    markSigSel(c.dataset.id,e.target.checked);
+  });
   updateSigSelCount();
 });
 document.getElementById('sigTable').addEventListener('change',e=>{
-  if(e.target.classList.contains('sig-checkbox'))updateSigSelCount();
+  if(!e.target.classList.contains('sig-checkbox'))return;
+  markSigSel(e.target.dataset.id,e.target.checked);
+  updateSigSelCount();
 });
 function resetSignals(){
   ['sigDim','sigLang','sigStatus','sigKw','sigDate1','sigDate2'].forEach(id=>{document.getElementById(id).value='';});
+  sigPage=1;
   renderSignals();
 }
 // ---- 批量确认：勾选信号 → 弹窗（信号清单 + 默认配置列表 + 统一排期）→ 按「目标维度 × 语种」绑定 ----
 let sigBatch=[];
 function batchConfirmSignals(){
-  const sel=[...document.querySelectorAll('#sigTable .sig-checkbox')].filter(c=>c.checked&&!c.disabled);
+  const sel=[...sigSel].map(id=>SIGNALS.find(s=>s.signal_id===id)).filter(s=>s&&!s.confirmed);
   if(!sel.length){alert('请先勾选要确认的跟投信号');return;}
-  sigBatch=sel.map(cb=>SIGNALS.find(s=>s.signal_id===cb.dataset.id)).filter(Boolean);
+  sigBatch=sel;
   document.getElementById('sigConfirmCount').textContent=sigBatch.length;
   document.getElementById('sigConfirmList').textContent=sigBatch.map(s=>s.dim+' '+sigName(s)).join('、');
   document.getElementById('sigConfirmTasks').innerHTML=sigTaskGridHTML(sigBatch);
@@ -630,6 +712,7 @@ function confirmSigBatch(){
     const live=sigLiveEntries(s);
     if(!live.length){skip++;return;} // 该「目标维度 × 语种」无启用中的默认任务：跳过并告警，信号保持待确认
     s.confirmed=true;
+    sigSel.delete(s.signal_id); // 已绑定的移出勾选；被跳过的保留勾选，补配后可再次确认
     RECORDS.unshift({
       id:s.signal_id,type:'跟投',dim:s.dim,target:sigName(s),
       taskId:boundTaskId(live),user:CUR_USER,run:'启动',time:schedule||s.receivedAt,
@@ -819,9 +902,12 @@ function removeTask(a,b,c){
 // ---- 测新清单：勾选短剧批量发起测新（NEW_DRAMA_ONLINE 仅提醒，测新由用户发起）----
 const dramaTest={LA007:'passed',LA006:'passed'}; // 历史已通过测新的短剧（不可重复发起）
 let drPage=1, drPageSize=10, drPages=1;
+const dramaSel=new Set(); // 跨页保留勾选：翻页重渲染不会丢掉已选短剧
 function updateDrSelCount(){
-  document.getElementById('drSelCount').textContent=[...document.querySelectorAll('#drTable .dr-checkbox')].filter(c=>c.checked).length;
+  document.getElementById('drSelCount').textContent=dramaSel.size;
 }
+// 勾选状态记在 dramaSel（按剧本编号），分页重渲染时据此回填
+function markDramaSel(id,on){if(on)dramaSel.add(id);else dramaSel.delete(id);}
 function drPrev(){if(drPage>1){drPage--;renderDramaTable();}}
 function drNext(){if(drPage<drPages){drPage++;renderDramaTable();}}
 function setDrPageSize(v){drPageSize=+v;drPage=1;renderDramaTable();}
@@ -879,7 +965,7 @@ function renderDramaTable(){
     const dis=dramaTest[d.id]==='passed'; // 已通过不可重复发起
     tb.insertAdjacentHTML('beforeend',
       '<tr data-drama="'+d.id+'">'
-      +'<td><input type="checkbox" class="dr-checkbox" data-id="'+d.id+'"'+(dis?' disabled title="已通过测新"':'')+'></td>'
+      +'<td><input type="checkbox" class="dr-checkbox" data-id="'+d.id+'"'+(dis?' disabled title="已通过测新"':(dramaSel.has(d.id)?' checked':''))+'></td>'
       +'<td>'+d.id+'</td>'
       +'<td>'+d.script+'</td>'
       +'<td>'+d.name+'</td>'
@@ -892,16 +978,22 @@ function renderDramaTable(){
   updateDrPager(total);
 }
 document.querySelector('.dr-checkbox-all').addEventListener('change',e=>{
-  [...document.querySelectorAll('#drTable .dr-checkbox')].forEach(c=>{c.checked=e.target.checked&&!c.disabled;});
+  [...document.querySelectorAll('#drTable .dr-checkbox')].forEach(c=>{
+    if(c.disabled)return; // 已通过测新的不可勾，全选自动跳过
+    c.checked=e.target.checked;
+    markDramaSel(c.dataset.id,e.target.checked);
+  });
   updateDrSelCount();
 });
 document.getElementById('drTable').addEventListener('change',e=>{
-  if(e.target.classList.contains('dr-checkbox'))updateDrSelCount();
+  if(!e.target.classList.contains('dr-checkbox'))return;
+  markDramaSel(e.target.dataset.id,e.target.checked);
+  updateDrSelCount();
 });
 function batchInitiateTest(){
-  const sel=[...document.querySelectorAll('#drTable .dr-checkbox')].filter(c=>c.checked&&!c.disabled);
+  const sel=[...dramaSel].map(id=>DRAMAS.find(x=>x.id===id)).filter(d=>d&&dramaTest[d.id]!=='passed');
   if(!sel.length){alert('请先勾选要发起测新的短剧');return;}
-  batchSel=sel.map(cb=>DRAMAS.find(x=>x.id===cb.dataset.id)).filter(Boolean);
+  batchSel=sel;
   document.getElementById('detailCount').textContent=batchSel.length;
   document.getElementById('detailDramas').textContent=batchSel.map(d=>d.id+' '+d.name).join('、');
   document.getElementById('detailTasks').innerHTML=taskGridHTML();
@@ -936,11 +1028,13 @@ function confirmBatch(){
     const live=liveEntries(keyTest(d.lang));
     if(!live.length){skip++;return;} // 该语种无启用中的默认自动化任务：跳过并告警
     dramaTest[d.id]='passed';
+    dramaSel.delete(d.id); // 已发起的移出勾选；被跳过的保留勾选，补配后可重新发起
     prependRecord(d,schedule,live); // 开发期：分别调用 Meta / TikTok 自动化任务系统绑定短剧
   });
   batchSel=[];
   document.getElementById('detailMask').classList.remove('show');
   if(skip)alert(skip+' 部短剧该语种没有启用中的默认自动化任务，已跳过');
+  renderDramaTable(); // 已发起的转为「不可再发起」，勾选与批量区计数随之刷新
   switchToRecords();
 }
 function prependRecord(d,schedule,live){
@@ -967,19 +1061,36 @@ function renderRecords(){
     (!type||r.type===type)&&(!dim||r.dim===dim)&&(!user||r.user===user)
     &&(!kw||(r.target+' '+r.taskId).toLowerCase().includes(kw))
     &&(!d1||r.time.slice(0,10)>=d1)&&(!d2||r.time.slice(0,10)<=d2));
+  const total=list.length;
+  if(recPage>Math.max(1,Math.ceil(total/recPageSize)))recPage=1;
+  const slice=list.slice((recPage-1)*recPageSize,recPage*recPageSize);
   const tb=document.getElementById('recTableBody');
-  tb.innerHTML=list.map(r=>
+  tb.innerHTML=slice.map(r=>
     '<tr><td>'+r.id+'</td>'
     +'<td><span class="tag '+(r.type==='测新'?'tag-green':'tag-blue')+'">'+r.type+'</span></td>'
     +'<td>'+r.dim+'</td><td>'+r.target+'</td>'
     +'<td>'+r.taskId+'</td><td>'+r.user+'</td>'
     +'<td>'+runCell(r.run)+'</td><td>'+r.time+'</td></tr>').join('');
+  updateRecPager(total);
+}
+function recSearch(){recPage=1;renderRecords();}
+function recPrevPage(){if(recPage>1){recPage--;renderRecords();}}
+function recNextPage(){if(recPage<recPages){recPage++;renderRecords();}}
+function setRecPageSize(v){recPageSize=+v;recPage=1;renderRecords();}
+function updateRecPager(total){
+  recPages=Math.max(1,Math.ceil(total/recPageSize));
+  document.getElementById('recPagerInfo').textContent='共 '+total+' 条 · 第 '+recPage+'/'+recPages+' 页';
+  document.getElementById('recPrev').disabled=recPage<=1;
+  document.getElementById('recNext').disabled=recPage>=recPages;
 }
 function resetRecords(){
   ['recType','recDim','recKw','recUser','recDate1','recDate2'].forEach(id=>{document.getElementById(id).value='';});
+  recPage=1;
   renderRecords();
 }
 function switchToRecords(){
+  recPage=1; // 新写入的记录在最新一页，切回来直接可见
+  renderRecords();
   switchOuter('dashboard');
   document.querySelectorAll('.inner-tab').forEach(x=>x.classList.remove('active'));
   document.querySelector('.inner-tab[data-page="records"]').classList.add('active');
