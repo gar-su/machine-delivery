@@ -117,6 +117,7 @@
   .role-switch{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
   .role-switch select,.role-switch button{padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff;color:var(--text)}
   .role-switch button{cursor:pointer}
+  .sig-detail{background:#f5f7fa;padding:14px;border-radius:6px;overflow-x:auto;font-size:12px;line-height:1.6;white-space:pre;max-height:60vh}
 </style>
 </head>
 <body>
@@ -132,6 +133,7 @@
 <div class="outer-tabs">
   <div class="outer-tab active" data-outer="dashboard">运行看板</div>
   <div class="outer-tab" data-outer="dramas">测新清单</div>
+  <div class="outer-tab" data-outer="signals">跟投信号</div>
   <div class="outer-tab" data-outer="tasks">默认自动化任务</div>
 </div>
 
@@ -213,6 +215,37 @@
   </div>
 </div>
 
+<!-- 跟投信号 -->
+<div class="outer-page" id="outer-signals" style="display:none">
+  <div class="content">
+    <div class="filters">
+      <label>维度</label>
+      <select id="sigDim"><option value="">全部</option><option>短剧</option><option>广告计划</option><option>素材</option></select>
+      <label>语言</label>
+      <select id="sigLang"><option value="">全部</option><option>中文</option><option>英语</option><option>韩语</option><option>泰语</option><option>马来西亚语</option><option>印尼语</option><option>越南语</option><option>西班牙语</option></select>
+      <label>状态</label>
+      <select id="sigStatus"><option value="">全部</option><option>待确认</option><option>已绑定</option></select>
+      <label>目标</label>
+      <input id="sigKw" class="kw-input" placeholder="短剧名 / 剧本编号 / 计划ID / 素材ID">
+      <label>接收时间</label>
+      <input type="date" class="date-input" id="sigDate1"><span style="color:var(--muted)">至</span><input type="date" class="date-input" id="sigDate2">
+      <button class="btn-primary" onclick="renderSignals()">查询</button>
+      <button class="reset" onclick="resetSignals()">重置</button>
+    </div>
+    <div class="batch-form">
+      <div class="batch-form-title">批量确认 · 已选 <b id="sigSelCount">0</b> 条信号</div>
+      <div class="batch-form-field" style="font-size:12px;color:var(--muted)">跟投信号到达后只入本列表待确认，不自动绑定；勾选信号后「批量确认」，弹窗展示本批默认自动化任务配置并设统一排期，确认后按各信号的「目标维度 × 语种」绑定并进入执行记录</div>
+      <div class="batch-form-actions">
+        <button class="btn success" onclick="batchConfirmSignals()">批量确认</button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th><input type="checkbox" class="sig-checkbox-all"></th><th>接收时间</th><th>信号ID</th><th>维度</th><th>目标ID</th><th>短剧名</th><th>语言 / 剧本</th><th>置信度</th><th>原因</th><th>状态</th><th>详情</th></tr></thead>
+      <tbody id="sigTable"></tbody>
+    </table>
+  </div>
+</div>
+
 <!-- 默认自动化任务 -->
 <div class="outer-page" id="outer-tasks" style="display:none">
   <div class="content">
@@ -286,9 +319,45 @@
 </div>
 
 
+<!-- 跟投确认弹窗：批量确认（信号清单 + 默认配置列表 + 统一排期） -->
+<div class="modal-mask" id="sigConfirmMask">
+  <div class="modal">
+    <h2>跟投确认</h2>
+    <div class="form-row">
+      <label>本次批量确认</label>
+      <div>已选 <b id="sigConfirmCount">0</b> 条信号：<span id="sigConfirmList"></span></div>
+    </div>
+    <div class="form-row">
+      <label>默认自动化任务配置（本批信号按各自「目标维度 × 语种」自动绑定对应任务）</label>
+      <div id="sigConfirmTasks" style="overflow-x:auto"></div>
+    </div>
+    <div class="form-row">
+      <label>排期（东八区，对本批所有信号生效）</label>
+      <input type="datetime-local" id="sigConfirmSchedule">
+      <div class="hint">留空表示立即执行；排期作为参数传给自动化任务，由任务到点执行</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="cancelSigBatch()">取消</button>
+      <button class="btn primary" onclick="confirmSigBatch()">通过并绑定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 信号详情弹窗：展示收到的跟投信号原始数据 -->
+<div class="modal-mask" id="sigMask">
+  <div class="modal">
+    <h2>信号详情</h2>
+    <div class="sig-detail" id="sigDetail"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeSigDetail()">关闭</button>
+    </div>
+  </div>
+</div>
+
+
 <script>
 // 外层 Tab
-const crumbNames={dashboard:'执行记录',dramas:'测新清单',tasks:'默认自动化任务'};
+const crumbNames={dashboard:'执行记录',dramas:'测新清单',signals:'跟投信号',tasks:'默认自动化任务'};
 document.querySelectorAll('.outer-tab').forEach(t=>{
   t.addEventListener('click',()=>switchOuter(t.dataset.outer));
 });
@@ -297,14 +366,14 @@ function switchOuter(o){
   document.querySelectorAll('.outer-page').forEach(p=>{p.style.display=p.id==='outer-'+o?'block':'none';});
   document.getElementById('crumb').textContent=crumbNames[o]||'';
 }
-// 内层 Tab（运行看板仅执行记录）
+// 内层 Tab（运行看板：执行记录 / 跟投信号）
 document.querySelectorAll('.inner-tab').forEach(t=>{
   t.addEventListener('click',()=>{
     document.querySelectorAll('.inner-tab').forEach(x=>x.classList.remove('active'));
     t.classList.add('active');
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.getElementById('page-'+t.dataset.page).classList.add('active');
-    document.getElementById('crumb').textContent='执行记录';
+    document.getElementById('crumb').textContent=t.textContent;
   });
 });
 
@@ -409,42 +478,168 @@ const RECORDS=[
   {id:'sg_20260814_1358_02',type:'测新',dim:'短剧',target:'LA002 重生之都市医仙',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-14 13:58'},
   {id:'sg_20260814_1340_09',type:'测新',dim:'短剧',target:'LA010 逆光而行',taskId:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-14 13:40'},
 ];
-// ---- 跟投：FOLLOW_UP 信号 → 按 shortplay_id 反查短剧库取语种 → 按「目标维度 × 语种」解析「系统」版默认绑定 → 绑定 Meta / TikTok 并写执行记录 ----
-// 全自动，无人工确认、无排期；异常（反查失败 / 该「维度 × 语种」未配置）跳过并在运行列以文本呈现
+// ---- 跟投：FOLLOW_UP 信号到达 → 语种取 signal.language_code（经对照表）→ 按「目标维度 × 语种」取该组合下全部启用条目 → 绑定 Meta / TikTok 并写执行记录与信号列表 ----
+// 人工批量确认：信号到达只入列表待确认，勾选后批量确认才绑定；无启用条目的组合确认时跳过并提示，信号保持待确认
 const DIM_NAME={product:'短剧',campaign:'广告计划',material:'素材'};
-// 样例信号：上游 smart_ad_put 产出（跟投决策统一由其给出），原型启动时回放
+// 语种取值对照：上游 language_code（中文名）→ 本系统语种；未收录即本系统不支持该语言
+const LANG_ALIAS={'马来西亚语':'马来语'};
+const toLocalLang=code=>LANG_ALIAS[code]||(LANGS.includes(code)?code:'');
+// 按剧本编号命中本系统短剧库（DRAMAS.id 即剧本编号），仅用于把上游英文剧名换成中文展示
+const dramaByScript=no=>DRAMAS.find(d=>d.id===no);
+// 「跟投信号」页：收到的信号本体 + 状态（一份信号一行，不因绑定失败而不记录）
+const SIGNALS=[];
+// 样例信号：上游 smart_ad_put 的实际产出形态（BuildSignal），按到达顺序回放（列表最新在最上）
 const FOLLOW_UP_SAMPLES=[
-  {signal_id:'sg_20260814_1402_05',target_dimension:'product',target_id:'LA900',shortplay_id:'LA900',receivedAt:'2026-08-14 14:02'},
-  {signal_id:'sg_20260814_1415_03',target_dimension:'campaign',target_id:'cp_8891',shortplay_id:'LA018',receivedAt:'2026-08-14 14:15'},
-  {signal_id:'sg_20260814_1430_07',target_dimension:'material',target_id:'003_Shuer_QT_EN',shortplay_id:'LA007',receivedAt:'2026-08-14 14:30'},
-  {signal_id:'sg_20260814_1432_01',target_dimension:'product',target_id:'LA001',shortplay_id:'LA001',receivedAt:'2026-08-14 14:32'},
+  {signal_id:'20260909091157_2046485173620441090',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2046485173620441090',
+   language_code:'印尼语',script_no:'LA045',shortplay_name:'Watch Out! She\'s the Daughter of Zeus',
+   reason:'成长期: ROI>95.9% 且趋势上升98%',confidence:0.87,receivedAt:'2026-09-09 09:11'},
+  {signal_id:'20260909094233_2041826400758923265',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2041826400758923265',
+   language_code:'韩语',script_no:'LM009',shortplay_name:'I Loved the Wrong One All Along',
+   reason:'稳定期: ROI=95.4% > 40%，趋势平稳',confidence:0.86,receivedAt:'2026-09-09 09:42'},
+  {signal_id:'20260909105512_campaign_108',signal_type:'FOLLOW_UP',target_dimension:'campaign',target_id:'campaign_108_mno208',
+   language_code:'马来西亚语',script_no:'LA018',shortplay_name:'Marry Me, Stranger',
+   reason:'成长期 Campaign: ROI>40% 持续上升',confidence:0.81,receivedAt:'2026-09-09 10:55'},
+  {signal_id:'20260909110847_2043310298817762048',signal_type:'FOLLOW_UP',target_dimension:'material',target_id:'003_Shuer_QT_EN',
+   language_code:'英语',script_no:'LA007',shortplay_name:'The Tycoon\'s Daughter',
+   reason:'成长期: ROI>120% 且趋势上升35%',confidence:0.83,receivedAt:'2026-09-09 11:08'},
+  {signal_id:'20260909112630_2041056509957242881',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2041056509957242881',
+   language_code:'韩语',script_no:'LA001',shortplay_name:'The Substitute Wife',
+   reason:'稳定期: ROI=95.4% > 40%，趋势平稳',confidence:0.86,receivedAt:'2026-09-09 11:26'},
 ];
 // 演示：点「投递跟投信号」依次投递，模拟上游实时送达（真实环境下由 smart_ad_put 主动送达）
 const DEMO_FOLLOW_UPS=[
-  {signal_id:'sg_demo_01',target_dimension:'product',target_id:'LA005',shortplay_id:'LA005'},
-  {signal_id:'sg_demo_02',target_dimension:'material',target_id:'007_Night_QT_KR',shortplay_id:'LA011'},
-  {signal_id:'sg_demo_03',target_dimension:'campaign',target_id:'cp_9021',shortplay_id:'LA003'},
+  {signal_id:'sg_demo_01',signal_type:'FOLLOW_UP',target_dimension:'product',target_id:'2045093388012273664',
+   language_code:'韩语',script_no:'LA005',shortplay_name:'Marry Me, Stranger',
+   reason:'稳定期: ROI 52% 且波动平缓',confidence:0.77},
+  {signal_id:'sg_demo_02',signal_type:'FOLLOW_UP',target_dimension:'material',target_id:'007_Night_QT_KR',
+   language_code:'韩语',script_no:'LA011',shortplay_name:'Love in the Shadows',
+   reason:'成长期: ROI>105% 且趋势上升31%',confidence:0.78},
+  {signal_id:'sg_demo_03',signal_type:'FOLLOW_UP',target_dimension:'campaign',target_id:'cp_9021',
+   language_code:'中文',script_no:'LA003',shortplay_name:'My Cold Husband',
+   reason:'持续盈利 Campaign: ROI>40% 已持续 7 天',confidence:0.85},
 ];
 function nowStr(){
   const p=n=>String(n).padStart(2,'0'), t=new Date();
   return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate())+' '+p(t.getHours())+':'+p(t.getMinutes());
 }
 function receiveFollowUpSignal(sig,receivedAt){
-  if(RECORDS.some(r=>r.id===sig.signal_id))return; // 幂等：同 signal_id 重复投递不重复绑定
-  const d=DRAMAS.find(x=>x.id===sig.shortplay_id); // 语种一律由 shortplay_id 反查短剧库取得
-  const dim=DIM_NAME[sig.target_dimension]||''; // 目标维度直接取信号字段 target_dimension
-  const live=(d&&dim)?liveEntries(keyFollow(dim,d.lang)):[]; // 取该组合下全部启用中的条目
-  let run='跳过·数据异常', taskId='—'; // 目标短剧不在短剧库 → 数据异常
-  if(d){
-    if(live.length){run='启动';taskId=boundTaskId(live);}
-    else run='跳过·无默认自动化任务'; // 该「目标维度 × 语种」下没有启用中的默认任务
-  }
-  RECORDS.unshift({
-    id:sig.signal_id,type:'跟投',dim:DIM_NAME[sig.target_dimension]||'短剧',
-    target:sig.target_dimension==='product'&&d?d.id+' '+d.name:sig.target_id,
-    taskId:taskId,user:'系统',run:run,time:receivedAt||nowStr(),
+  if(SIGNALS.some(s=>s.signal_id===sig.signal_id))return; // 幂等：同 signal_id 重复投递不重复受理
+  // 信号到达只入列表待确认，不自动绑定——绑定由用户「批量确认」触发
+  SIGNALS.unshift({...sig,dim:DIM_NAME[sig.target_dimension]||'—',receivedAt:receivedAt||nowStr(),
+    drama:dramaByScript(sig.script_no),confirmed:false});
+  renderSignals();
+}
+function showSigDetail(id){
+  const s=SIGNALS.find(x=>x.signal_id===id);
+  if(!s)return;
+  const raw={
+    signal_id:s.signal_id,signal_type:s.signal_type,target_dimension:s.target_dimension,target_id:s.target_id,
+    language_code:s.language_code,script_no:s.script_no,shortplay_name:s.shortplay_name,
+    reason:s.reason,confidence:s.confidence,
+  };
+  document.getElementById('sigDetail').textContent=JSON.stringify(raw,null,2);
+  document.getElementById('sigMask').classList.add('show');
+}
+function closeSigDetail(){document.getElementById('sigMask').classList.remove('show');}
+// 该信号按「目标维度 × 语种」解析出的启用中条目（语种不在对照表则为空）
+function sigLiveEntries(s){
+  const local=toLocalLang(s.language_code);
+  return local?liveEntries(keyFollow(s.dim,local)):[];
+}
+const sigName=s=>s.drama?s.drama.id+' '+s.drama.name:(s.shortplay_name||s.target_id);
+function updateSigSelCount(){
+  document.getElementById('sigSelCount').textContent=[...document.querySelectorAll('#sigTable .sig-checkbox')].filter(c=>c.checked).length;
+}
+function renderSignals(){
+  const dim=document.getElementById('sigDim').value;
+  const lang=document.getElementById('sigLang').value;
+  const st=document.getElementById('sigStatus').value;
+  const kw=(document.getElementById('sigKw').value||'').trim().toLowerCase();
+  const d1=document.getElementById('sigDate1').value, d2=document.getElementById('sigDate2').value;
+  const list=SIGNALS.filter(s=>
+    (!dim||s.dim===dim)&&(!lang||s.language_code===lang)
+    &&(!st||(st==='待确认'?!s.confirmed:s.confirmed))
+    &&(!kw||((s.shortplay_name||'')+' '+s.script_no+' '+s.target_id+' '+(s.drama?s.drama.name:'')).toLowerCase().includes(kw))
+    &&(!d1||s.receivedAt.slice(0,10)>=d1)&&(!d2||s.receivedAt.slice(0,10)<=d2));
+  document.getElementById('sigTable').innerHTML=list.map(s=>
+    '<tr data-sig="'+s.signal_id+'">'
+    +'<td><input type="checkbox" class="sig-checkbox" data-id="'+s.signal_id+'"'+(s.confirmed?' disabled title="已绑定"':'')+'></td>'
+    +'<td>'+s.receivedAt+'</td>'
+    +'<td>'+s.signal_id+'</td>'
+    +'<td>'+s.dim+'</td>'
+    +'<td>'+s.target_id+'</td>'
+    +'<td>'+sigName(s)+'</td>'
+    +'<td>'+s.language_code+' · '+s.script_no+'</td>'
+    +'<td>'+(s.confidence*100).toFixed(0)+'%</td>'
+    +'<td class="reason">'+s.reason+'</td>'
+    +'<td>'+(s.confirmed?'<span class="tag tag-green">已绑定</span>':'<span class="tag tag-amber">待确认</span>')+'</td>'
+    +'<td><button class="btn" onclick="showSigDetail(\''+s.signal_id+'\')">查看</button></td></tr>').join('');
+  updateSigSelCount();
+}
+document.querySelector('.sig-checkbox-all').addEventListener('change',e=>{
+  [...document.querySelectorAll('#sigTable .sig-checkbox')].forEach(c=>{c.checked=e.target.checked&&!c.disabled;});
+  updateSigSelCount();
+});
+document.getElementById('sigTable').addEventListener('change',e=>{
+  if(e.target.classList.contains('sig-checkbox'))updateSigSelCount();
+});
+function resetSignals(){
+  ['sigDim','sigLang','sigStatus','sigKw','sigDate1','sigDate2'].forEach(id=>{document.getElementById(id).value='';});
+  renderSignals();
+}
+// ---- 批量确认：勾选信号 → 弹窗（信号清单 + 默认配置列表 + 统一排期）→ 按「目标维度 × 语种」绑定 ----
+let sigBatch=[];
+function batchConfirmSignals(){
+  const sel=[...document.querySelectorAll('#sigTable .sig-checkbox')].filter(c=>c.checked&&!c.disabled);
+  if(!sel.length){alert('请先勾选要确认的跟投信号');return;}
+  sigBatch=sel.map(cb=>SIGNALS.find(s=>s.signal_id===cb.dataset.id)).filter(Boolean);
+  document.getElementById('sigConfirmCount').textContent=sigBatch.length;
+  document.getElementById('sigConfirmList').textContent=sigBatch.map(s=>s.dim+' '+sigName(s)).join('、');
+  document.getElementById('sigConfirmTasks').innerHTML=sigTaskGridHTML(sigBatch);
+  document.getElementById('sigConfirmMask').classList.add('show');
+}
+// 列出本批涉及的「目标维度 × 语种」组合及其全部启用条目；无启用条目则标「未配置」
+function sigTaskGridHTML(batch){
+  const combos=[];
+  batch.forEach(s=>{
+    const l=toLocalLang(s.language_code);
+    if(l&&!combos.some(c=>c[0]===s.dim&&c[1]===l))combos.push([s.dim,l]);
   });
-  renderRecords();
+  let html='<table><thead><tr><th>目标维度</th><th>语种</th><th>绑定 Meta 任务</th><th>绑定 TikTok 任务</th></tr></thead><tbody>';
+  if(!combos.length)return html+'<tr><td colspan="4"><span class="cell-muted">本批没有可解析的「目标维度 × 语种」组合</span></td></tr></tbody></table>';
+  combos.forEach(([dim,lang])=>{
+    const live=liveEntries(keyFollow(dim,lang));
+    if(!live.length){
+      html+='<tr><td>'+dim+'</td><td>'+lang+'</td><td><span class="cell-muted">未配置</span></td><td><span class="cell-muted">未配置</span></td></tr>';
+      return;
+    }
+    live.forEach(e=>{
+      html+='<tr><td>'+dim+'</td><td>'+lang+'</td>'
+        +'<td>'+(e.meta?nameById('meta',e.meta):'<span class="cell-muted">未配置</span>')+'</td>'
+        +'<td>'+(e.tt?nameById('tt',e.tt):'<span class="cell-muted">未配置</span>')+'</td></tr>';
+    });
+  });
+  return html+'</tbody></table>';
+}
+function cancelSigBatch(){sigBatch=[];document.getElementById('sigConfirmMask').classList.remove('show');}
+function confirmSigBatch(){
+  if(!sigBatch.length)return;
+  const schedule=(document.getElementById('sigConfirmSchedule').value||'').replace('T',' ');
+  let skip=0;
+  sigBatch.forEach(s=>{
+    const live=sigLiveEntries(s);
+    if(!live.length){skip++;return;} // 该「目标维度 × 语种」无启用中的默认任务：跳过并告警，信号保持待确认
+    s.confirmed=true;
+    RECORDS.unshift({
+      id:s.signal_id,type:'跟投',dim:s.dim,target:sigName(s),
+      taskId:boundTaskId(live),user:CUR_USER,run:'启动',time:schedule||s.receivedAt,
+    });
+  });
+  sigBatch=[];
+  document.getElementById('sigConfirmMask').classList.remove('show');
+  if(skip)alert(skip+' 条信号该「目标维度 × 语种」没有启用中的默认任务，已跳过');
+  renderSignals(); renderRecords();
+  switchToRecords();
 }
 let demoIdx=0;
 function deliverDemoFollowUp(){
@@ -798,6 +993,7 @@ renderDramaTable();
 setRole(CUR_ROLE); // 角色决定跟投 tab 可见性，并渲染默认自动化任务表
 FOLLOW_UP_SAMPLES.forEach(s=>receiveFollowUpSignal(s,s.receivedAt)); // 跟投样例走真实信号处理路径
 renderRecords();
+renderSignals();
 </script>
 </body>
 </html>
