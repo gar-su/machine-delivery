@@ -203,7 +203,7 @@
     </div>
     <div class="batch-form">
       <div class="batch-form-title">批量发起测新 · 已选 <b id="drSelCount">0</b> 部短剧</div>
-      <div class="batch-form-field" style="font-size:12px;color:var(--muted)">新上线短剧由 NEW_DRAMA_ONLINE 信号提醒进入；勾选短剧后「发起测新」，弹窗展示默认自动化任务配置并设统一排期，确认后按语种绑定并进入执行记录查看结果</div>
+      <div class="batch-form-field" style="font-size:12px;color:var(--muted)">新上线短剧由 NEW_DRAMA_ONLINE 信号提醒进入；勾选短剧后「发起测新」，弹窗展示默认自动化任务配置并逐部设排期（上游初次投放时间还没到则默认带出），确认后按语种绑定并进入执行记录查看结果</div>
       <div class="batch-form-actions">
         <button class="btn success" onclick="batchInitiateTest()">批量发起测新</button>
       </div>
@@ -323,17 +323,13 @@
   <div class="modal">
     <h2>测新确认</h2>
     <div class="form-row">
-      <label>本次批量发起测新</label>
-      <div>已选 <b id="detailCount">0</b> 部短剧：<span id="detailDramas"></span></div>
-    </div>
-    <div class="form-row">
       <label>默认自动化任务配置（本批短剧按各自语种自动绑定对应任务）</label>
       <div id="detailTasks" style="overflow-x:auto"></div>
     </div>
     <div class="form-row">
-      <label>排期（东八区，对本批所有短剧生效）</label>
-      <input type="datetime-local" id="detailSchedule" value="2026-08-15T10:00">
-      <div class="hint">留空表示立即执行；排期作为参数到点执行，预上线短剧建议设置</div>
+      <label>本次批量发起测新 · 已选 <b id="detailCount">0</b> 部短剧，逐部设排期（东八区）</label>
+      <div id="detailSchedules" style="overflow-x:auto"></div>
+      <div class="hint">排期逐部设置：上游「初次投放时间」晚于当前东八区时间时默认带出，为空或已早于当前时间则留空（上游值即东八区，本系统不做时区换算）；留空表示立即执行，预上线短剧建议设置</div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="cancelBatch()">取消</button>
@@ -405,9 +401,14 @@ document.querySelectorAll('.inner-tab').forEach(t=>{
 const CUR_USER='运营A'; // 后台当前操作人（开发期从登录态取）
 // 测新清单数据：剧本（编号 script）与短剧两级；isNew=true 表示由 NEW_DRAMA_ONLINE 信号提醒进入（仅提醒，不自动触发测新）
 // onlineAt=上线 / 预上线时间，firstDeliverAt=初次投放时间（两者均由上游带入，初次投放时间为空表示上游无投放记录）
+// 演示用：以当前东八区时间为基准生成未来时间，让「初次投放时间未到 → 排期默认带出」在任何时候打开原型都可见
+const demoFuture=(days,time)=>{
+  const t=new Date(Date.now()+8*3600e3+days*86400e3);
+  return t.toISOString().slice(0,10)+' '+time;
+};
 const DRAMAS=[
-  {id:'LA001',script:'替嫁新娘',name:'霸总的替嫁新娘',lang:'韩语',isNew:true,onlineAt:'2026-08-14 10:20',firstDeliverAt:''},
-  {id:'LA002',script:'都市医仙',name:'重生之都市医仙',lang:'英语',isNew:true,onlineAt:'2026-08-14 11:05',firstDeliverAt:''},
+  {id:'LA001',script:'替嫁新娘',name:'霸总的替嫁新娘',lang:'韩语',isNew:true,onlineAt:'2026-08-14 10:20',firstDeliverAt:demoFuture(2,'10:00')},
+  {id:'LA002',script:'都市医仙',name:'重生之都市医仙',lang:'英语',isNew:true,onlineAt:'2026-08-14 11:05',firstDeliverAt:demoFuture(5,'09:30')},
   {id:'LA003',script:'小姨我爱你',name:'小姨我爱你',lang:'中文',isNew:true,onlineAt:'2026-08-15 09:30',firstDeliverAt:''},
   {id:'LA004',script:'小娇妻马甲',name:'小娇妻马甲藏不住了',lang:'韩语',onlineAt:'2026-07-28 14:00',firstDeliverAt:'2026-07-29 10:12'},
   {id:'LA005',script:'闪婚老公',name:'闪婚老公是大佬',lang:'韩语',onlineAt:'2026-07-26 16:40',firstDeliverAt:'2026-07-27 09:05'},
@@ -995,12 +996,31 @@ function batchInitiateTest(){
   if(!sel.length){alert('请先勾选要发起测新的短剧');return;}
   batchSel=sel;
   document.getElementById('detailCount').textContent=batchSel.length;
-  document.getElementById('detailDramas').textContent=batchSel.map(d=>d.id+' '+d.name).join('、');
+  document.getElementById('detailSchedules').innerHTML=dramaScheduleRowsHTML();
   document.getElementById('detailTasks').innerHTML=taskGridHTML();
   document.getElementById('detailMask').classList.add('show');
 }
+// 逐部排期默认值：仅当上游「初次投放时间」晚于当前东八区时间才预填；为空或已不晚于当前时间则留空 = 立即执行
+// 上游时间即东八区，按 UTC+8 解析后与当前时刻比较，不改动展示值与传参值
+function firstDeliverAtEpoch(s){
+  const m=/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(s);
+  return m?Date.UTC(+m[1],+m[2]-1,+m[3],+m[4]-8,+m[5]):null;
+}
+function scheduleDefault(d){
+  if(!d.firstDeliverAt)return ''; // 未投放过
+  const t=firstDeliverAtEpoch(d.firstDeliverAt);
+  return (t!==null&&t>Date.now())?d.firstDeliverAt.replace(' ','T'):''; // 已过去（含等于）则留空
+}
+function dramaScheduleRowsHTML(){
+  let html='<table><thead><tr><th>剧本编号</th><th>短剧名</th><th>排期（东八区）</th></tr></thead><tbody>';
+  batchSel.forEach(d=>{
+    html+='<tr><td>'+d.id+'</td><td>'+d.name+'</td>'
+      +'<td><input type="datetime-local" class="batch-schedule detail-schedule" data-id="'+d.id+'" value="'+scheduleDefault(d)+'"></td></tr>';
+  });
+  return html+'</tbody></table>';
+}
 
-// ---- 测新确认弹窗：批量确认（默认配置列表 + 统一排期），确认后绑定并进入执行记录 ----
+// ---- 测新确认弹窗：批量确认（默认配置列表 + 逐部排期），确认后绑定并进入执行记录 ----
 let batchSel=[], recSeq=1;
 function taskGridHTML(){
   let html='<table><thead><tr><th>场景</th><th>语种</th><th>绑定 Meta 任务</th><th>绑定 TikTok 任务</th></tr></thead><tbody>';
@@ -1022,14 +1042,15 @@ function taskGridHTML(){
 function cancelBatch(){batchSel=[];document.getElementById('detailMask').classList.remove('show');}
 function confirmBatch(){
   if(!batchSel.length)return;
-  const schedule=(document.getElementById('detailSchedule').value||'').replace('T',' ')||'立即';
+  const sched={};
+  document.querySelectorAll('#detailSchedules .detail-schedule').forEach(i=>{sched[i.dataset.id]=(i.value||'').replace('T',' ');});
   let skip=0;
   batchSel.forEach(d=>{
     const live=liveEntries(keyTest(d.lang));
     if(!live.length){skip++;return;} // 该语种无启用中的默认自动化任务：跳过并告警
     dramaTest[d.id]='passed';
     dramaSel.delete(d.id); // 已发起的移出勾选；被跳过的保留勾选，补配后可重新发起
-    prependRecord(d,schedule,live); // 开发期：分别调用 Meta / TikTok 自动化任务系统绑定短剧
+    prependRecord(d,sched[d.id]||'立即',live); // 开发期：分别调用 Meta / TikTok 自动化任务系统绑定短剧
   });
   batchSel=[];
   document.getElementById('detailMask').classList.remove('show');
