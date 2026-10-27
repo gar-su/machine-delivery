@@ -96,6 +96,14 @@
   .st-txt.s-pause{color:var(--muted)}
   .st-txt.s-none{color:#d1d5db}
   .cell-muted{color:#d1d5db}
+  .table-wrap{overflow-x:auto}
+  .rec-table{min-width:1180px}
+  .rec-table th,.rec-table td{padding:8px 10px;font-size:12px}
+  .rec-task{max-width:190px;white-space:normal;word-break:break-all;line-height:1.5}
+  .out-cell{line-height:1.7;white-space:nowrap}
+  .out-pf{display:inline-block;width:46px;color:var(--muted)}
+  .out-st{color:var(--muted)}
+  .out-none{color:#9ca3af}
   .batch-label{font-size:13px;color:var(--muted)}
   .cl-checkbox,.cl-checkbox-all{cursor:pointer}
   .batch-schedule{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px}
@@ -158,10 +166,12 @@
         <button class="btn-primary" onclick="recSearch()">查询</button>
         <button class="reset" onclick="resetRecords()">重置</button>
       </div>
-      <table>
-        <thead><tr><th>信号ID</th><th>类型</th><th>维度</th><th>目标</th><th>自动化任务ID</th><th>绑定参数</th><th>操作人</th><th>运行</th><th>时间</th></tr></thead>
+      <div class="table-wrap">
+      <table class="rec-table">
+        <thead><tr><th>信号ID</th><th>类型</th><th>维度</th><th>短剧名</th><th>语言</th><th>剧本编号</th><th>剧本名字</th><th>自动化任务</th><th>广告计划 / 系列</th><th>广告组</th><th>广告</th><th>操作人</th><th>时间（东八时区）</th></tr></thead>
         <tbody id="recTableBody"></tbody>
       </table>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px">
         <span id="recPagerInfo" style="color:var(--muted);font-size:13px"></span>
         <button class="btn" id="recPrev" onclick="recPrevPage()">上一页</button>
@@ -553,20 +563,24 @@ function bindSummary(d,live){
   });
   return [...new Set(parts)].join('；')||'—';
 }
-// 执行记录：编排动作留痕（测新/跟投），只读；run 取自动化任务运行状态（未绑定成功时展示跳过原因）
+// ---- 执行记录：广告产出（下游 auto_put / auto_put_tiktok 建实体时按 signal_id 回写）----
+// 每层计数为 [上传成功, 上传失败, 待上传]；单平台为 null 该平台行显示 —；整条 null 表示绑定跳过或上线前历史记录
+const zeroOutput=()=>({meta:{campaign:[0,0,0],adset:[0,0,0],ad:[0,0,0]},tt:{campaign:[0,0,0],adset:[0,0,0],ad:[0,0,0]}});
+const outOf=(meta,tt)=>({meta:{campaign:meta[0],adset:meta[1],ad:meta[2]},tt:{campaign:tt[0],adset:tt[1],ad:tt[2]}});
+// 执行记录：编排动作留痕（测新/跟投），只读
 const RECORDS=[
-  {id:'20260906153042_003_Shuer_QT_EN',type:'跟投',dim:'素材',target:'003_Shuer_QT_EN',taskId:'meta_en_follow_material / tt_en_follow_material',bind:'Meta 定向 英语-全球；TikTok 定向 英语-全球',user:'运营C',run:'启动',time:'2026-09-06 15:30'},
-  {id:'20260906111805_2041889900112233445',type:'跟投',dim:'短剧',target:'LA013 甜妻上门',taskId:'meta_en_follow_drama / tt_en_follow_drama',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 自动匹配→甜妻上门 (Sweet Wife Knocks)',user:'运营A',run:'暂停',time:'2026-09-06 11:18'},
-  {id:'20260906104218_2041122334455667788',type:'跟投',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_follow_drama / tt_kr_follow_drama',bind:'Meta 定向 韩语-韩国；TikTok 定向 韩语-韩国',user:'运营A',run:'启动',time:'2026-09-06 10:42'},
-  {id:'sg_20260814_1358_02',type:'测新',dim:'短剧',target:'LA002 重生之都市医仙',taskId:'meta_en_test / tt_en_test',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 自动匹配→重生之都市医仙 (Reborn Urban Doctor)',user:'运营A',run:'启动',time:'2026-08-14 13:58'},
-  {id:'sg_20260814_1340_09',type:'测新',dim:'短剧',target:'LA010 逆光而行',taskId:'—',bind:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-14 13:40'},
-  {id:'sg_20260814_1122_04',type:'测新',dim:'短剧',target:'LA013 甜妻上门',taskId:'meta_en_test / tt_en_test',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 自动匹配→甜妻上门 (Sweet Wife Knocks)',user:'运营A',run:'启动',time:'2026-08-14 11:22'},
-  {id:'sg_20260814_1015_01',type:'测新',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',bind:'Meta 定向 韩语-韩国；TikTok 定向 韩语-韩国',user:'运营C',run:'启动',time:'2026-08-14 10:15'},
-  {id:'sg_20260813_1640_07',type:'测新',dim:'短剧',target:'LA016 前夫请走开',taskId:'—',bind:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-13 16:40'},
-  {id:'sg_20260813_1528_03',type:'测新',dim:'短剧',target:'LA008 落日余晖下的吻',taskId:'meta_en_test / tt_en_test',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 同语种随机→甜妻上门 (Sweet Wife Knocks)',user:'运营A',run:'启动',time:'2026-08-13 15:28'},
-  {id:'sg_20260812_1745_11',type:'测新',dim:'短剧',target:'LA021 林深时见鹿',taskId:'—',bind:'—',user:'运营C',run:'跳过·无默认自动化任务',time:'2026-08-12 17:45'},
-  {id:'sg_20260812_1420_05',type:'测新',dim:'短剧',target:'LA011 宠妃升职记',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',bind:'Meta 定向 韩语-韩国；TikTok 定向 韩语-韩国',user:'运营A',run:'启动',time:'2026-08-12 14:20'},
-  {id:'sg_20260811_1630_08',type:'测新',dim:'短剧',target:'LA023 隐婚总裁夜夜求撩',taskId:'meta_en_test / tt_en_test',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 同语种随机→甜妻上门 (Sweet Wife Knocks)',user:'运营A',run:'启动',time:'2026-08-11 16:30'},
+  {id:'20260906153042_003_Shuer_QT_EN',type:'跟投',dim:'素材',shortplayName:'总裁的替身白月光',lang:'英语',scriptNo:'LA007',scriptName:'替身白月光',targetId:'003_Shuer_QT_EN',taskId:'meta_en_follow_material / tt_en_follow_material',out:outOf([[2,0,0],[4,1,0],[8,6,2]],[[1,0,0],[2,0,0],[4,4,0]]),user:'运营C',time:'2026-09-06 15:30'},
+  {id:'20260906111805_2041889900112233445',type:'跟投',dim:'短剧',shortplayName:'甜妻上门',lang:'英语',scriptNo:'LA013',scriptName:'甜妻上门',targetId:'2041889900112233445',taskId:'meta_en_follow_drama / tt_en_follow_drama',out:outOf([[2,1,0],[4,2,0],[8,6,0]],[[2,0,0],[4,0,0],[8,0,0]]),user:'运营A',time:'2026-09-06 11:18'},
+  {id:'20260906104218_2041122334455667788',type:'跟投',dim:'短剧',shortplayName:'霸总的替嫁新娘',lang:'韩语',scriptNo:'LA001',scriptName:'替嫁新娘',targetId:'2041122334455667788',taskId:'meta_kr_follow_drama / tt_kr_follow_drama',out:outOf([[2,0,0],[4,0,0],[8,0,0]],[[1,0,0],[2,0,0],[4,0,0]]),user:'运营A',time:'2026-09-06 10:42'},
+  {id:'sg_20260814_1358_02',type:'测新',dim:'短剧',shortplayName:'重生之都市医仙',lang:'英语',scriptNo:'LA002',scriptName:'都市医仙',targetId:'LA002',taskId:'meta_en_test / tt_en_test',out:outOf([[1,0,0],[2,0,0],[4,3,1]],[[1,0,0],[2,0,0],[4,2,0]]),user:'运营A',time:'2026-08-14 13:58'},
+  {id:'sg_20260814_1340_09',type:'测新',dim:'短剧',shortplayName:'逆光而行',lang:'英语',scriptNo:'LA010',scriptName:'逆光而行',targetId:'LA010',taskId:'—',out:null,user:'运营B',time:'2026-08-14 13:40'},
+  {id:'sg_20260814_1122_04',type:'测新',dim:'短剧',shortplayName:'甜妻上门',lang:'英语',scriptNo:'LA013',scriptName:'甜妻上门',targetId:'LA013',taskId:'meta_en_test / tt_en_test',out:outOf([[2,1,0],[4,2,0],[8,5,2]],[[1,0,0],[2,0,0],[4,4,0]]),user:'运营A',time:'2026-08-14 11:22'},
+  {id:'sg_20260814_1015_01',type:'测新',dim:'短剧',shortplayName:'霸总的替嫁新娘',lang:'韩语',scriptNo:'LA001',scriptName:'替嫁新娘',targetId:'LA001',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',out:outOf([[2,0,0],[4,0,0],[8,0,0]],[[2,0,0],[4,0,0],[8,0,0]]),user:'运营C',time:'2026-08-14 10:15'},
+  {id:'sg_20260813_1640_07',type:'测新',dim:'短剧',shortplayName:'前夫请走开',lang:'英语',scriptNo:'LA016',scriptName:'前夫',targetId:'LA016',taskId:'—',out:null,user:'运营B',time:'2026-08-13 16:40'},
+  {id:'sg_20260813_1528_03',type:'测新',dim:'短剧',shortplayName:'落日余晖下的吻',lang:'英语',scriptNo:'LA008',scriptName:'落日余晖',targetId:'LA008',taskId:'meta_en_test / tt_en_test',out:outOf([[1,0,0],[2,0,0],[4,0,0]],[[1,0,0],[2,0,0],[3,2,1]]),user:'运营A',time:'2026-08-13 15:28'},
+  {id:'sg_20260812_1745_11',type:'测新',dim:'短剧',shortplayName:'林深时见鹿',lang:'中文',scriptNo:'LA021',scriptName:'林深时见鹿',targetId:'LA021',taskId:'—',out:null,user:'运营C',time:'2026-08-12 17:45'},
+  {id:'sg_20260812_1420_05',type:'测新',dim:'短剧',shortplayName:'宠妃升职记',lang:'韩语',scriptNo:'LA011',scriptName:'宠妃升职记',targetId:'LA011',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',out:outOf([[2,0,0],[4,0,0],[8,0,0]],[[2,0,0],[4,0,0],[8,0,0]]),user:'运营A',time:'2026-08-12 14:20'},
+  {id:'sg_20260811_1630_08',type:'测新',dim:'短剧',shortplayName:'隐婚总裁夜夜求撩',lang:'英语',scriptNo:'LA023',scriptName:'隐婚总裁',targetId:'LA023',taskId:'meta_en_test / tt_en_test',out:null,user:'运营A',time:'2026-08-11 16:30'},
 ];
 let recPage=1, recPageSize=10, recPages=1;
 // ---- 跟投：FOLLOW_UP 信号到达 → 语种取 signal.language_code（经对照表）→ 按「目标维度 × 语种」取该组合下全部启用条目 → 绑定 Meta / TikTok 并写执行记录与信号列表 ----
@@ -771,10 +785,12 @@ function confirmSigBatch(){
     if(!live.length){skip++;return;} // 该「目标维度 × 语种」无启用中的默认任务：跳过并告警，信号保持待确认
     s.confirmed=true;
     sigSel.delete(s.signal_id); // 已绑定的移出勾选；被跳过的保留勾选，补配后可再次确认
+    const drama=s.drama;
     RECORDS.unshift({
-      id:s.signal_id,type:'跟投',dim:s.dim,target:sigName(s),
-      taskId:boundTaskId(live),user:CUR_USER,run:'启动',time:schedule||s.receivedAt,
-      bind:bindSummary(s.drama||{script:s.script_no,name:s.shortplay_name,lang:toLocalLang(s.language_code)},live),
+      id:s.signal_id,type:'跟投',dim:s.dim,
+      shortplayName:drama?drama.name:(s.shortplay_name||s.target_id),lang:toLocalLang(s.language_code),
+      scriptNo:s.script_no||'—',scriptName:drama?drama.script:'—',targetId:s.target_id,
+      taskId:boundTaskId(live),out:zeroOutput(),user:CUR_USER,time:schedule||s.receivedAt,
     });
   });
   sigBatch=[];
@@ -1121,15 +1137,19 @@ function confirmBatch(){
 function prependRecord(d,schedule,live){
   RECORDS.unshift({
     id:'sg_manual_'+String(recSeq++).padStart(3,'0'),
-    type:'测新',dim:'短剧',target:d.id+' '+d.name,
-    taskId:boundTaskId(live),bind:bindSummary(d,live),user:CUR_USER,run:'启动',time:schedule,
+    type:'测新',dim:'短剧',shortplayName:d.name,lang:d.lang,scriptNo:d.id,scriptName:d.script,targetId:d.id,
+    taskId:boundTaskId(live),out:zeroOutput(),user:CUR_USER,time:schedule,
   });
   renderRecords();
 }
-function runCell(run){
-  if(run==='启动')return '<span class="st"><span class="st-dot s-ok"></span><span class="st-txt s-ok">启动</span></span>';
-  if(run==='暂停')return '<span class="st"><span class="st-dot s-pause"></span><span class="st-txt s-pause">暂停</span></span>';
-  return '<span class="cell-muted">'+run+'</span>';
+function outLine(name,arr){
+  const prefix='<span class="out-pf">'+name+'</span> ';
+  if(!arr)return '<div class="out-none">'+prefix+'—</div>';
+  return '<div>'+prefix+(arr[0]+arr[1]+arr[2])+' <span class="out-st">('+arr.join('/')+')</span></div>';
+}
+function outCell(out,layer){
+  if(!out)return '<div class="out-cell">'+outLine('Meta',null)+outLine('TikTok',null)+'</div>';
+  return '<div class="out-cell">'+outLine('Meta',out.meta&&out.meta[layer])+outLine('TikTok',out.tt&&out.tt[layer])+'</div>';
 }
 function renderRecords(){
   const type=document.getElementById('recType').value;
@@ -1140,18 +1160,20 @@ function renderRecords(){
   const d2=document.getElementById('recDate2').value;
   const list=RECORDS.filter(r=>
     (!type||r.type===type)&&(!dim||r.dim===dim)&&(!user||r.user===user)
-    &&(!kw||(r.target+' '+r.taskId).toLowerCase().includes(kw))
+    &&(!kw||[r.id,r.shortplayName,r.scriptNo,r.scriptName,r.targetId,r.taskId].join(' ').toLowerCase().includes(kw))
     &&(!d1||r.time.slice(0,10)>=d1)&&(!d2||r.time.slice(0,10)<=d2));
   const total=list.length;
   if(recPage>Math.max(1,Math.ceil(total/recPageSize)))recPage=1;
   const slice=list.slice((recPage-1)*recPageSize,recPage*recPageSize);
   const tb=document.getElementById('recTableBody');
   tb.innerHTML=slice.map(r=>
-    '<tr><td>'+r.id+'</td>'
+    '<tr data-signal-id="'+r.id+'"><td>'+r.id+'</td>'
     +'<td><span class="tag '+(r.type==='测新'?'tag-green':'tag-blue')+'">'+r.type+'</span></td>'
-    +'<td>'+r.dim+'</td><td>'+r.target+'</td>'
-    +'<td>'+r.taskId+'</td><td class="reason">'+(r.bind||'—')+'</td><td>'+r.user+'</td>'
-    +'<td>'+runCell(r.run)+'</td><td>'+r.time+'</td></tr>').join('');
+    +'<td>'+r.dim+'</td><td>'+r.shortplayName+'</td><td>'+r.lang+'</td>'
+    +'<td>'+r.scriptNo+'</td><td>'+r.scriptName+'</td>'
+    +'<td class="rec-task">'+(r.taskId||'—')+'</td>'
+    +'<td>'+outCell(r.out,'campaign')+'</td><td>'+outCell(r.out,'adset')+'</td><td>'+outCell(r.out,'ad')+'</td>'
+    +'<td>'+r.user+'</td><td>'+r.time+'</td></tr>').join('');
   updateRecPager(total);
 }
 function recSearch(){recPage=1;renderRecords();}
