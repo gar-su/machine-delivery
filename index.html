@@ -159,7 +159,7 @@
         <button class="reset" onclick="resetRecords()">重置</button>
       </div>
       <table>
-        <thead><tr><th>信号ID</th><th>类型</th><th>维度</th><th>目标</th><th>自动化任务ID</th><th>操作人</th><th>运行</th><th>时间</th></tr></thead>
+        <thead><tr><th>信号ID</th><th>类型</th><th>维度</th><th>目标</th><th>自动化任务ID</th><th>绑定参数</th><th>操作人</th><th>运行</th><th>时间</th></tr></thead>
         <tbody id="recTableBody"></tbody>
       </table>
       <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px">
@@ -282,7 +282,7 @@
         <h3 style="margin:0" id="taskTitle">测新默认自动化任务</h3>
         <button class="btn primary" onclick="openAddTask()">新增配置</button>
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px" id="taskHint">同一语种可配置多条默认任务，解析时取全部启用中的条目</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px" id="taskHint">同一语种可配置多条默认任务，解析时取全部启用中的条目；定向包取任务首部短剧，TikTok 商品自动匹配失败后随机兜底</div>
       <table>
         <thead id="taskThead"></thead>
         <tbody id="taskTable"></tbody>
@@ -325,6 +325,7 @@
     <div class="form-row">
       <label>默认自动化任务配置（本批短剧按各自语种自动绑定对应任务）</label>
       <div id="detailTasks" style="overflow-x:auto"></div>
+      <div class="hint">定向包取各任务首部短剧；TikTok 商品先按剧本名 + 语种自动匹配，失败同语种随机、再全库随机</div>
     </div>
     <div class="form-row">
       <label>本次批量发起测新 · 已选 <b id="detailCount">0</b> 部短剧，逐部设排期（东八区）</label>
@@ -350,6 +351,7 @@
     <div class="form-row">
       <label>默认自动化任务配置（本批信号按各自「目标维度 × 语种」自动绑定对应任务）</label>
       <div id="sigConfirmTasks" style="overflow-x:auto"></div>
+      <div class="hint">定向包取各任务首部短剧；TikTok 商品先按剧本名 + 语种自动匹配，失败同语种随机、再全库随机</div>
     </div>
     <div class="form-row">
       <label>排期（东八区，对本批所有信号生效）</label>
@@ -436,27 +438,53 @@ const DRAMAS=[
 // 从 Meta / TikTok 两个自动化任务系统拉取的自动化任务（外部系统数据，开发期经 API 拉取）
 // mt = 该任务指定了素材类型；素材维度的候选只列带 mt 的任务，其余维度不限
 const META_TASKS=[
-  {id:'meta_kr_test',name:'韩语测新·A 包（Meta）'},
-  {id:'meta_kr_test2',name:'韩语测新·B 包（Meta）'},
-  {id:'meta_en_test',name:'英语测新（Meta）'},
-  {id:'meta_zh_test',name:'中文测新（Meta）'},
-  {id:'meta_th_test',name:'泰语测新（Meta）'},
-  {id:'meta_kr_follow_drama',name:'韩语跟投·短剧·A 包（Meta）'},
-  {id:'meta_kr_follow_drama2',name:'韩语跟投·短剧·B 包（Meta）'},
-  {id:'meta_en_follow_drama',name:'英语跟投·短剧（Meta）'},
-  {id:'meta_en_follow_material',name:'英语跟投·素材·视频（Meta）',mt:'视频'},
+  {id:'meta_kr_test',name:'韩语测新·A 包（Meta）',audience:'韩语-韩国'},
+  {id:'meta_kr_test2',name:'韩语测新·B 包（Meta）',audience:'韩语-韩国'},
+  {id:'meta_en_test',name:'英语测新（Meta）',audience:'英语-全球'},
+  {id:'meta_zh_test',name:'中文测新（Meta）',audience:'中文-中国'},
+  {id:'meta_th_test',name:'泰语测新（Meta）',audience:'泰语-泰国'},
+  {id:'meta_kr_follow_drama',name:'韩语跟投·短剧·A 包（Meta）',audience:'韩语-韩国'},
+  {id:'meta_kr_follow_drama2',name:'韩语跟投·短剧·B 包（Meta）',audience:'韩语-韩国'},
+  {id:'meta_en_follow_drama',name:'英语跟投·短剧（Meta）',audience:'英语-全球'},
+  {id:'meta_en_follow_material',name:'英语跟投·素材·视频（Meta）',mt:'视频',audience:'英语-全球'},
 ];
 const TT_TASKS=[
-  {id:'tt_kr_test',name:'韩语测新·A 包（TikTok）'},
-  {id:'tt_kr_test2',name:'韩语测新·B 包（TikTok）'},
-  {id:'tt_en_test',name:'英语测新（TikTok）'},
-  {id:'tt_zh_test',name:'中文测新（TikTok）'},
-  {id:'tt_th_test',name:'泰语测新（TikTok）'},
-  {id:'tt_kr_follow_drama',name:'韩语跟投·短剧·A 包（TikTok）'},
-  {id:'tt_kr_follow_drama2',name:'韩语跟投·短剧·B 包（TikTok）'},
-  {id:'tt_en_follow_drama',name:'英语跟投·短剧（TikTok）'},
-  {id:'tt_en_follow_material',name:'英语跟投·素材·视频（TikTok）',mt:'视频'},
+  {id:'tt_kr_test',name:'韩语测新·A 包（TikTok）',audience:'韩语-韩国'},
+  {id:'tt_kr_test2',name:'韩语测新·B 包（TikTok）',audience:'韩语-韩国'},
+  {id:'tt_en_test',name:'英语测新（TikTok）',audience:'商品级',product:true},
+  {id:'tt_zh_test',name:'中文测新（TikTok）',audience:'中文-中国'},
+  {id:'tt_th_test',name:'泰语测新（TikTok）',audience:'泰语-泰国'},
+  {id:'tt_kr_follow_drama',name:'韩语跟投·短剧·A 包（TikTok）',audience:'韩语-韩国'},
+  {id:'tt_kr_follow_drama2',name:'韩语跟投·短剧·B 包（TikTok）',audience:'韩语-韩国'},
+  {id:'tt_en_follow_drama',name:'英语跟投·短剧（TikTok）',audience:'商品级',product:true},
+  {id:'tt_en_follow_material',name:'英语跟投·素材·视频（TikTok）',mt:'视频',audience:'英语-全球'},
 ];
+// TikTok 商品库（原型占位）：开启商品数据源的任务 → 账户商品库 → 商品（含字幕语言）
+// 真实实现优先取任务同账户下已配的库，未配时取账户下第一个库；原型按任务维度平铺
+const TT_PRODUCT_LIBS={
+  tt_en_test:{name:'短剧库-欧美',products:[
+    {name:'甜妻上门 (Sweet Wife Knocks)',lang:'英语'},
+    {name:'重生之都市医仙 (Reborn Urban Doctor)',lang:'英语'},
+    {name:'繁花 (Blooming)',lang:'中文'},
+  ]},
+  tt_en_follow_drama:{name:'短剧库-欧美',products:[
+    {name:'甜妻上门 (Sweet Wife Knocks)',lang:'英语'},
+    {name:'重生之都市医仙 (Reborn Urban Doctor)',lang:'英语'},
+    {name:'繁花 (Blooming)',lang:'中文'},
+  ]},
+};
+// 商品匹配：剧本名包含于商品名 + 语种一致；未命中先同语种随机，没有同语种商品再全库随机（原型固定取首条）
+function matchProduct(d,taskId){
+  const lib=TT_PRODUCT_LIBS[taskId];
+  if(!lib||!lib.products.length)return {label:'无可用商品库'};
+  const script=((d&&(d.script||d.name))||'').toLowerCase();
+  const lang=(d&&d.lang)||'';
+  const hit=lib.products.find(p=>p.name.toLowerCase().includes(script)&&p.lang===lang);
+  if(hit)return {product:hit,label:'自动匹配→'+hit.name};
+  const same=lib.products.filter(p=>p.lang===lang);
+  const pick=(same.length?same:lib.products)[0];
+  return {product:pick,label:(same.length?'同语种随机→':'全库随机→')+pick.name};
+}
 // 默认自动化任务：一条配置 = 键 + 绑定 Meta 任务 + 绑定 TikTok 任务 + 启用状态
 // 键：测新 = 语种；跟投 = 目标维度 × 语种（短剧级 / 广告计划级 / 素材级的跟投任务互不通用）
 // 同一个键可配多条，条数不限——解析时取该键下「全部启用中」的条目，把目标绑进它们的全部任务
@@ -498,20 +526,47 @@ function nameById(platform,id){
   const t=taskList(platform).find(x=>x.id===id);
   return t?t.name:id;
 }
+function taskById(platform,id){return taskList(platform).find(x=>x.id===id);}
+// 定向包展示：商品数据源开启的 TikTok 任务为商品级，其余取任务首部短剧的定向包
+function audLabel(platform,id){
+  const t=taskById(platform,id);
+  if(!t)return '—';
+  return platform==='tt'&&t.product?'商品级':(t.audience||'—');
+}
+function bindCols(metaId,ttId){
+  const m=metaId?taskById('meta',metaId):null, t=ttId?taskById('tt',ttId):null;
+  const aud=[m?'Meta '+audLabel('meta',metaId):'',t?'TikTok '+audLabel('tt',ttId):''].filter(Boolean).join('；')||'—';
+  return {aud:aud,prod:t&&t.product?'自动匹配（剧本名 + 语种）；失败同语种随机→全库随机':'—'};
+}
+// 执行记录绑定参数：定向包取各任务首部短剧；TikTok 商品数据源开启时展示商品与匹配方式
+function bindSummary(d,live){
+  const parts=[];
+  live.forEach(e=>{
+    if(e.meta)parts.push('Meta 定向 '+audLabel('meta',e.meta));
+    if(e.tt){
+      const t=taskById('tt',e.tt);
+      if(t&&t.product){
+        const r=matchProduct(d,t.id);
+        parts.push('TikTok 定向 商品级；商品 '+r.label);
+      }else parts.push('TikTok 定向 '+audLabel('tt',e.tt));
+    }
+  });
+  return [...new Set(parts)].join('；')||'—';
+}
 // 执行记录：编排动作留痕（测新/跟投），只读；run 取自动化任务运行状态（未绑定成功时展示跳过原因）
 const RECORDS=[
-  {id:'20260906153042_003_Shuer_QT_EN',type:'跟投',dim:'素材',target:'003_Shuer_QT_EN',taskId:'meta_en_follow_material / tt_en_follow_material',user:'运营C',run:'启动',time:'2026-09-06 15:30'},
-  {id:'20260906111805_2041889900112233445',type:'跟投',dim:'短剧',target:'LA013 甜妻上门',taskId:'meta_en_follow_drama / tt_en_follow_drama',user:'运营A',run:'暂停',time:'2026-09-06 11:18'},
-  {id:'20260906104218_2041122334455667788',type:'跟投',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_follow_drama / tt_kr_follow_drama',user:'运营A',run:'启动',time:'2026-09-06 10:42'},
-  {id:'sg_20260814_1358_02',type:'测新',dim:'短剧',target:'LA002 重生之都市医仙',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-14 13:58'},
-  {id:'sg_20260814_1340_09',type:'测新',dim:'短剧',target:'LA010 逆光而行',taskId:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-14 13:40'},
-  {id:'sg_20260814_1122_04',type:'测新',dim:'短剧',target:'LA013 甜妻上门',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-14 11:22'},
-  {id:'sg_20260814_1015_01',type:'测新',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',user:'运营C',run:'启动',time:'2026-08-14 10:15'},
-  {id:'sg_20260813_1640_07',type:'测新',dim:'短剧',target:'LA016 前夫请走开',taskId:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-13 16:40'},
-  {id:'sg_20260813_1528_03',type:'测新',dim:'短剧',target:'LA008 落日余晖下的吻',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-13 15:28'},
-  {id:'sg_20260812_1745_11',type:'测新',dim:'短剧',target:'LA021 林深时见鹿',taskId:'—',user:'运营C',run:'跳过·无默认自动化任务',time:'2026-08-12 17:45'},
-  {id:'sg_20260812_1420_05',type:'测新',dim:'短剧',target:'LA011 宠妃升职记',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',user:'运营A',run:'启动',time:'2026-08-12 14:20'},
-  {id:'sg_20260811_1630_08',type:'测新',dim:'短剧',target:'LA023 隐婚总裁夜夜求撩',taskId:'meta_en_test / tt_en_test',user:'运营A',run:'启动',time:'2026-08-11 16:30'},
+  {id:'20260906153042_003_Shuer_QT_EN',type:'跟投',dim:'素材',target:'003_Shuer_QT_EN',taskId:'meta_en_follow_material / tt_en_follow_material',bind:'Meta 定向 英语-全球；TikTok 定向 英语-全球',user:'运营C',run:'启动',time:'2026-09-06 15:30'},
+  {id:'20260906111805_2041889900112233445',type:'跟投',dim:'短剧',target:'LA013 甜妻上门',taskId:'meta_en_follow_drama / tt_en_follow_drama',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 自动匹配→甜妻上门 (Sweet Wife Knocks)',user:'运营A',run:'暂停',time:'2026-09-06 11:18'},
+  {id:'20260906104218_2041122334455667788',type:'跟投',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_follow_drama / tt_kr_follow_drama',bind:'Meta 定向 韩语-韩国；TikTok 定向 韩语-韩国',user:'运营A',run:'启动',time:'2026-09-06 10:42'},
+  {id:'sg_20260814_1358_02',type:'测新',dim:'短剧',target:'LA002 重生之都市医仙',taskId:'meta_en_test / tt_en_test',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 自动匹配→重生之都市医仙 (Reborn Urban Doctor)',user:'运营A',run:'启动',time:'2026-08-14 13:58'},
+  {id:'sg_20260814_1340_09',type:'测新',dim:'短剧',target:'LA010 逆光而行',taskId:'—',bind:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-14 13:40'},
+  {id:'sg_20260814_1122_04',type:'测新',dim:'短剧',target:'LA013 甜妻上门',taskId:'meta_en_test / tt_en_test',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 自动匹配→甜妻上门 (Sweet Wife Knocks)',user:'运营A',run:'启动',time:'2026-08-14 11:22'},
+  {id:'sg_20260814_1015_01',type:'测新',dim:'短剧',target:'LA001 霸总的替嫁新娘',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',bind:'Meta 定向 韩语-韩国；TikTok 定向 韩语-韩国',user:'运营C',run:'启动',time:'2026-08-14 10:15'},
+  {id:'sg_20260813_1640_07',type:'测新',dim:'短剧',target:'LA016 前夫请走开',taskId:'—',bind:'—',user:'运营B',run:'跳过·无默认自动化任务',time:'2026-08-13 16:40'},
+  {id:'sg_20260813_1528_03',type:'测新',dim:'短剧',target:'LA008 落日余晖下的吻',taskId:'meta_en_test / tt_en_test',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 同语种随机→甜妻上门 (Sweet Wife Knocks)',user:'运营A',run:'启动',time:'2026-08-13 15:28'},
+  {id:'sg_20260812_1745_11',type:'测新',dim:'短剧',target:'LA021 林深时见鹿',taskId:'—',bind:'—',user:'运营C',run:'跳过·无默认自动化任务',time:'2026-08-12 17:45'},
+  {id:'sg_20260812_1420_05',type:'测新',dim:'短剧',target:'LA011 宠妃升职记',taskId:'meta_kr_test、meta_kr_test2 / tt_kr_test、tt_kr_test2',bind:'Meta 定向 韩语-韩国；TikTok 定向 韩语-韩国',user:'运营A',run:'启动',time:'2026-08-12 14:20'},
+  {id:'sg_20260811_1630_08',type:'测新',dim:'短剧',target:'LA023 隐婚总裁夜夜求撩',taskId:'meta_en_test / tt_en_test',bind:'Meta 定向 英语-全球；TikTok 定向 商品级；商品 同语种随机→甜妻上门 (Sweet Wife Knocks)',user:'运营A',run:'启动',time:'2026-08-11 16:30'},
 ];
 let recPage=1, recPageSize=10, recPages=1;
 // ---- 跟投：FOLLOW_UP 信号到达 → 语种取 signal.language_code（经对照表）→ 按「目标维度 × 语种」取该组合下全部启用条目 → 绑定 Meta / TikTok 并写执行记录与信号列表 ----
@@ -688,18 +743,20 @@ function sigTaskGridHTML(batch){
     const l=toLocalLang(s.language_code);
     if(l&&!combos.some(c=>c[0]===s.dim&&c[1]===l))combos.push([s.dim,l]);
   });
-  let html='<table><thead><tr><th>目标维度</th><th>语种</th><th>绑定 Meta 任务</th><th>绑定 TikTok 任务</th></tr></thead><tbody>';
-  if(!combos.length)return html+'<tr><td colspan="4"><span class="cell-muted">本批没有可解析的「目标维度 × 语种」组合</span></td></tr></tbody></table>';
+  let html='<table><thead><tr><th>目标维度</th><th>语种</th><th>绑定 Meta 任务</th><th>绑定 TikTok 任务</th><th>定向包</th><th>TikTok 商品</th></tr></thead><tbody>';
+  if(!combos.length)return html+'<tr><td colspan="6"><span class="cell-muted">本批没有可解析的「目标维度 × 语种」组合</span></td></tr></tbody></table>';
   combos.forEach(([dim,lang])=>{
     const live=liveEntries(keyFollow(dim,lang));
     if(!live.length){
-      html+='<tr><td>'+dim+'</td><td>'+lang+'</td><td><span class="cell-muted">未配置</span></td><td><span class="cell-muted">未配置</span></td></tr>';
+      html+='<tr><td>'+dim+'</td><td>'+lang+'</td><td><span class="cell-muted">未配置</span></td><td><span class="cell-muted">未配置</span></td><td>—</td><td>—</td></tr>';
       return;
     }
     live.forEach(e=>{
+      const b=bindCols(e.meta,e.tt);
       html+='<tr><td>'+dim+'</td><td>'+lang+'</td>'
         +'<td>'+(e.meta?nameById('meta',e.meta):'<span class="cell-muted">未配置</span>')+'</td>'
-        +'<td>'+(e.tt?nameById('tt',e.tt):'<span class="cell-muted">未配置</span>')+'</td></tr>';
+        +'<td>'+(e.tt?nameById('tt',e.tt):'<span class="cell-muted">未配置</span>')+'</td>'
+        +'<td>'+b.aud+'</td><td>'+b.prod+'</td></tr>';
     });
   });
   return html+'</tbody></table>';
@@ -717,6 +774,7 @@ function confirmSigBatch(){
     RECORDS.unshift({
       id:s.signal_id,type:'跟投',dim:s.dim,target:sigName(s),
       taskId:boundTaskId(live),user:CUR_USER,run:'启动',time:schedule||s.receivedAt,
+      bind:bindSummary(s.drama||{script:s.script_no,name:s.shortplay_name,lang:toLocalLang(s.language_code)},live),
     });
   });
   sigBatch=[];
@@ -789,8 +847,8 @@ function setScene(scene){
   document.querySelectorAll('#taskSceneTabs .scene-tab').forEach(t=>t.classList.toggle('active',t.dataset.scene===scene));
   document.getElementById('taskTitle').textContent=scene+'默认自动化任务';
   document.getElementById('taskHint').textContent=scene==='跟投'
-    ?'系统全局一版，仅管理员可维护；按「目标维度 × 语种」组织，同一组合可配多条，解析时取全部启用中的条目'
-    :'同一语种可配置多条默认任务，解析时取全部启用中的条目';
+    ?'系统全局一版，仅管理员可维护；按「目标维度 × 语种」组织，同一组合可配多条，解析时取全部启用中的条目；定向包取任务首部短剧，TikTok 商品自动匹配失败后随机兜底'
+    :'同一语种可配置多条默认任务，解析时取全部启用中的条目；定向包取任务首部短剧，TikTok 商品自动匹配失败后随机兜底';
   rerenderTaskTable();
 }
 // 角色切换：跟投配置仅管理员可见可改（开发期从登录态取，此处供评审切换查看）
@@ -1023,18 +1081,20 @@ function dramaScheduleRowsHTML(){
 // ---- 测新确认弹窗：批量确认（默认配置列表 + 逐部排期），确认后绑定并进入执行记录 ----
 let batchSel=[], recSeq=1;
 function taskGridHTML(){
-  let html='<table><thead><tr><th>场景</th><th>语种</th><th>绑定 Meta 任务</th><th>绑定 TikTok 任务</th></tr></thead><tbody>';
+  let html='<table><thead><tr><th>场景</th><th>语种</th><th>绑定 Meta 任务</th><th>绑定 TikTok 任务</th><th>定向包</th><th>TikTok 商品</th></tr></thead><tbody>';
   for(const lang of LANGS){
     const live=liveEntries(keyTest(lang)); // 只列启用中的条目；同语种多条时逐条成行
     if(!live.length){
       html+='<tr><td>测新</td><td>'+lang+'</td>'
-        +'<td><span class="cell-muted">未配置</span></td><td><span class="cell-muted">未配置</span></td></tr>';
+        +'<td><span class="cell-muted">未配置</span></td><td><span class="cell-muted">未配置</span></td><td>—</td><td>—</td></tr>';
       continue;
     }
     live.forEach(e=>{
+      const b=bindCols(e.meta,e.tt);
       html+='<tr><td>测新</td><td>'+lang+'</td>'
         +'<td>'+(e.meta?nameById('meta',e.meta):'<span class="cell-muted">未配置</span>')+'</td>'
-        +'<td>'+(e.tt?nameById('tt',e.tt):'<span class="cell-muted">未配置</span>')+'</td></tr>';
+        +'<td>'+(e.tt?nameById('tt',e.tt):'<span class="cell-muted">未配置</span>')+'</td>'
+        +'<td>'+b.aud+'</td><td>'+b.prod+'</td></tr>';
     });
   }
   return html+'</tbody></table>';
@@ -1062,7 +1122,7 @@ function prependRecord(d,schedule,live){
   RECORDS.unshift({
     id:'sg_manual_'+String(recSeq++).padStart(3,'0'),
     type:'测新',dim:'短剧',target:d.id+' '+d.name,
-    taskId:boundTaskId(live),user:CUR_USER,run:'启动',time:schedule,
+    taskId:boundTaskId(live),bind:bindSummary(d,live),user:CUR_USER,run:'启动',time:schedule,
   });
   renderRecords();
 }
@@ -1090,7 +1150,7 @@ function renderRecords(){
     '<tr><td>'+r.id+'</td>'
     +'<td><span class="tag '+(r.type==='测新'?'tag-green':'tag-blue')+'">'+r.type+'</span></td>'
     +'<td>'+r.dim+'</td><td>'+r.target+'</td>'
-    +'<td>'+r.taskId+'</td><td>'+r.user+'</td>'
+    +'<td>'+r.taskId+'</td><td class="reason">'+(r.bind||'—')+'</td><td>'+r.user+'</td>'
     +'<td>'+runCell(r.run)+'</td><td>'+r.time+'</td></tr>').join('');
   updateRecPager(total);
 }
